@@ -24,6 +24,7 @@
 
 html, body {
   height: 100%;
+  width: 100%;
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -648,6 +649,7 @@ input[type=range]::-moz-range-thumb {
   box-shadow: var(--shadow-sm);
   pointer-events: auto;
   user-select: none;
+  cursor: pointer;
   transition: all .15s ease;
 }
 #versionBadge:hover {
@@ -673,6 +675,8 @@ input[type=range]::-moz-range-thumb {
   padding: 16px 18px;
   font-size: 12.8px;
   line-height: 1.55;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 #helpPanel.show {
   display: block;
@@ -750,8 +754,8 @@ kbd {
   transform: translateX(-50%) translateY(0);
 }
 
-/* ---------- modal ---------- */
-#modal {
+/* ---------- modals ---------- */
+#modal, .custom-modal {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -761,7 +765,7 @@ kbd {
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }
-#modal.show {
+#modal.show, .custom-modal.show {
   display: grid;
 }
 .modal-card {
@@ -787,20 +791,25 @@ kbd {
   justify-content: flex-end;
   gap: 10px;
 }
-.modal-actions button {
+.modal-actions button, .backup-buttons button {
   font-family: inherit;
   font-weight: 600;
   font-size: 13.5px;
   border-radius: 10px;
   cursor: pointer;
   padding: 9px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all .14s ease;
 }
-#modalCancel {
+#modalCancel, #backupCloseBtn {
   border: 1px solid var(--line);
   background: #fff;
   color: #5C564C;
 }
-#modalCancel:hover {
+#modalCancel:hover, #backupCloseBtn:hover {
   background: #F6F2E9;
 }
 #modalOk {
@@ -813,6 +822,29 @@ kbd {
 }
 #modalOk:hover {
   filter: brightness(1.08);
+}
+
+.backup-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  box-shadow: 0 3px 10px var(--accent-soft);
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+.btn-secondary {
+  background: #F4F0E6;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.btn-secondary:hover {
+  background: #EFE8D8;
 }
 
 /* ---------- first-run hint & drop overlay ---------- */
@@ -873,5 +905,68 @@ kbd {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* ==========================================================
+   RESPONSIVE DESIGN (Tablets & Mobile)
+   ========================================================== */
+@media (max-width: 768px) {
+  #topbar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    padding: 6px 10px;
+    gap: 6px;
+    row-gap: 6px;
+  }
+  .brand-name {
+    display: none;
+  }
+  .btn-text {
+    display: none;
+  }
+  #exportBtn {
+    padding: 0 10px;
+  }
+  #toolrail {
+    left: 8px;
+    padding: 5px;
+  }
+  .tbtn {
+    width: 36px;
+    height: 36px;
+  }
+  .tbtn svg {
+    width: 18px;
+    height: 18px;
+  }
+  #pagestrip {
+    bottom: 8px;
+    max-width: calc(100vw - 80px);
+    padding: 5px;
+  }
+  .pthumb {
+    width: 110px;
+    height: 62px;
+  }
+  #addPage {
+    width: 44px;
+    height: 62px;
+  }
+  #versionBadge {
+    bottom: 8px;
+    right: 8px;
+    font-size: 10px;
+    padding: 2px 7px;
+  }
+}
+
+@media (max-width: 480px) {
+  #zoomGroup, #bgGroup {
+    display: none;
+  }
+  input[type=range] {
+    width: 80px;
   }
 }

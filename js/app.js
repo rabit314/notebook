@@ -68,6 +68,7 @@ let modalOpen = false;
 let clipObj = null;      // internal object clipboard
 let lastPtr = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 const activePtrs = new Map();   // pointerId -> {x,y}  (for pinch gestures)
+let lastTapTime = 0;     // for mobile double-tap detection
 
 const getObject = id => page().objects.find(o => o.id === id);
 const removeObject = id => {
@@ -658,7 +659,7 @@ canvas.addEventListener('pointerdown', e => {
   lastPtr = { x: e.clientX, y: e.clientY };
   activePtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-  // two fingers on touch = pinch zoom + pan
+  // Two fingers on touch = pinch zoom + pan
   if (activePtrs.size === 2) {
     commitEditor();
     action = { type: 'pinch', ...pinchState() };
@@ -666,7 +667,20 @@ canvas.addEventListener('pointerdown', e => {
   }
   if (activePtrs.size > 2) return;
 
-  // right / middle mouse, or holding Space = pan
+  // Double tap detection for mobile/touch
+  const now = performance.now();
+  if (e.pointerType === 'touch' && now - lastTapTime < 300) {
+    const w = worldFromClient(e.clientX, e.clientY);
+    const hit = hitTest(w, 4);
+    if (hit && (hit.type === 'text' || hit.type === 'sticky')) {
+      state.selectedId = hit.id;
+      openEditor(hit, hit.type);
+      return;
+    }
+  }
+  lastTapTime = now;
+
+  // Right / middle mouse, or holding Space = pan
   if (e.button === 1 || e.button === 2 || spaceHeld) { startPan(e); return; }
   if (e.button !== 0) return;
 
@@ -738,7 +752,7 @@ canvas.addEventListener('pointermove', e => {
       laserPts.push({ x: e.clientX, y: e.clientY, t: performance.now() });
   }
 
-  // hover feedback with the select tool
+  // Hover feedback with the select tool
   if (state.tool === 'select' && !action && !spaceHeld) {
     const w0 = worldFromClient(e.clientX, e.clientY);
     canvas.style.cursor = hitTest(w0, 0) ? 'move' : 'default';
@@ -822,7 +836,7 @@ canvas.addEventListener('pointerleave', () => {
   $('laserDot').style.display = 'none';
 });
 
-/* double click: edit text / sticky, or create text box on empty board */
+/* Double click: edit text / sticky, or create text box on empty board */
 canvas.addEventListener('dblclick', e => {
   if (state.tool !== 'select') return;
   const w = worldFromClient(e.clientX, e.clientY);
@@ -835,7 +849,7 @@ canvas.addEventListener('dblclick', e => {
   }
 });
 
-/* zoom on ctrl/cmd+wheel, pan on plain wheel */
+/* Zoom on ctrl/cmd+wheel, pan on plain wheel */
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   if (e.ctrlKey || e.metaKey) {
@@ -961,6 +975,27 @@ function updateCursorOverlays(e) {
 /* ================================================================
    7. SELECTION — move / resize / duplicate / delete / z-order
    ================================================================ */
+function syncToolbarToSelected(o) {
+  if (!o) return;
+  if (o.color) {
+    if (MARKERS.includes(o.color)) setColor(o.color);
+    else if (NOTES.includes(o.color)) setNoteColor(o.color);
+  }
+  if (o.width !== undefined) {
+    state.size = o.width;
+    $('widthRange').value = o.width;
+    $('widthVal').textContent = o.width;
+  }
+  if (o.fontSize !== undefined) {
+    state.fontSize = o.fontSize;
+    $('fontVal').textContent = o.fontSize;
+  }
+  if (o.fill !== undefined) {
+    state.fill = !!o.fill;
+    $('fillBtn').classList.toggle('on', state.fill);
+  }
+}
+
 function handleSelectDown(e, w) {
   const sel = getObject(state.selectedId);
   if (sel) {
@@ -993,6 +1028,7 @@ function handleSelectDown(e, w) {
     } else {
       state.selectedId = hit.id;
     }
+    syncToolbarToSelected(target);
     action = { type: 'move', obj: target, lastW: w, startW: w, snapped: false };
   } else {
     state.selectedId = null;
@@ -1384,7 +1420,7 @@ window.addEventListener('paste', e => {
 });
 
 /* ================================================================
-   11. PNG EXPORT
+   11. PNG EXPORT & JSON BACKUP / RESTORE
    ================================================================ */
 function exportPNG() {
   commitEditor();
@@ -1430,6 +1466,49 @@ function exportPNG() {
   } catch (err) {
     toast('Export blocked — a canvas element was tainted');
   }
+}
+
+function exportJSONBackup() {
+  const data = serializeBoard();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `brightboard-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  $('backupModal').classList.remove('show');
+  toast('Notebook JSON exported');
+}
+
+function restoreFromJSONFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data && Array.isArray(data.pages) && data.pages.length) {
+        showConfirm('Restore Notebook?', 'This will replace current pages with the backup data.', 'Restore', () => {
+          restoreBoard(data);
+          rebuildStrip();
+          syncBgSeg();
+          updateZoomLabel();
+          updateHistoryUI();
+          scheduleSave();
+          needsRender = true;
+          $('backupModal').classList.remove('show');
+          toast('Notebook restored from JSON');
+        });
+      } else {
+        toast('Invalid notebook backup file');
+      }
+    } catch (_) {
+      toast('Could not parse backup file');
+    }
+  };
+  reader.readAsText(file);
 }
 
 /* ================================================================
@@ -1624,7 +1703,18 @@ function buildSwatches() {
     b.dataset.col = col;
     b.style.background = col;
     b.title = col;
-    b.onclick = () => setColor(col);
+    b.onclick = () => {
+      setColor(col);
+      if (state.selectedId) {
+        const o = getObject(state.selectedId);
+        if (o && o.color) {
+          pushUndo();
+          o.color = col;
+          scheduleThumb();
+          needsRender = true;
+        }
+      }
+    };
     row.appendChild(b);
   });
 }
@@ -1643,7 +1733,18 @@ function buildNotePalette() {
     b.dataset.col = col;
     b.style.background = col;
     b.title = 'Note colour';
-    b.onclick = () => setNoteColor(col);
+    b.onclick = () => {
+      setNoteColor(col);
+      if (state.selectedId) {
+        const o = getObject(state.selectedId);
+        if (o && o.type === 'sticky') {
+          pushUndo();
+          o.color = col;
+          scheduleThumb();
+          needsRender = true;
+        }
+      }
+    };
     $('noteRow').appendChild(b);
   });
 }
@@ -1763,8 +1864,6 @@ function mountIcons() {
     } catch (_) {
       fallbackIcons();
     }
-  } else {
-    fallbackIcons();
   }
 }
 
@@ -1793,25 +1892,70 @@ function bindUI() {
     state.custom = e.target.value;
     $('customSw').style.setProperty('--cc', e.target.value);
     setColor(e.target.value);
+    if (state.selectedId) {
+      const o = getObject(state.selectedId);
+      if (o && o.color) {
+        pushUndo();
+        o.color = e.target.value;
+        scheduleThumb();
+        needsRender = true;
+      }
+    }
   });
 
   $('widthRange').addEventListener('input', e => {
     state.size = +e.target.value;
     $('widthVal').textContent = state.size;
+    if (state.selectedId) {
+      const o = getObject(state.selectedId);
+      if (o && o.width !== undefined) {
+        pushUndo();
+        o.width = state.size;
+        scheduleThumb();
+        needsRender = true;
+      }
+    }
   });
 
   $('fontMinus').onclick = () => {
     state.fontSize = clamp(state.fontSize - 2, 10, 96);
     $('fontVal').textContent = state.fontSize;
+    if (state.selectedId) {
+      const o = getObject(state.selectedId);
+      if (o && o.fontSize !== undefined) {
+        pushUndo();
+        o.fontSize = state.fontSize;
+        scheduleThumb();
+        needsRender = true;
+      }
+    }
   };
   $('fontPlus').onclick = () => {
     state.fontSize = clamp(state.fontSize + 2, 10, 96);
     $('fontVal').textContent = state.fontSize;
+    if (state.selectedId) {
+      const o = getObject(state.selectedId);
+      if (o && o.fontSize !== undefined) {
+        pushUndo();
+        o.fontSize = state.fontSize;
+        scheduleThumb();
+        needsRender = true;
+      }
+    }
   };
 
   $('fillBtn').onclick = () => {
     state.fill = !state.fill;
     $('fillBtn').classList.toggle('on', state.fill);
+    if (state.selectedId) {
+      const o = getObject(state.selectedId);
+      if (o && o.fill !== undefined) {
+        pushUndo();
+        o.fill = state.fill;
+        scheduleThumb();
+        needsRender = true;
+      }
+    }
   };
 
   document.querySelectorAll('#bgSeg button').forEach(b => b.onclick = () => setBg(b.dataset.bg));
@@ -1823,6 +1967,24 @@ function bindUI() {
 
   $('exportBtn').onclick = exportPNG;
   $('helpBtn').onclick = () => toggleHelp();
+
+  // Backup & Restore handlers
+  $('backupBtn').onclick = () => {
+    $('backupModal').classList.add('show');
+  };
+  $('backupCloseBtn').onclick = () => {
+    $('backupModal').classList.remove('show');
+  };
+  $('backupModal').addEventListener('pointerdown', e => {
+    if (e.target === $('backupModal')) $('backupModal').classList.remove('show');
+  });
+  $('downloadBackupBtn').onclick = exportJSONBackup;
+  $('uploadBackupBtn').onclick = () => $('backupInput').click();
+  $('backupInput').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) restoreFromJSONFile(f);
+    e.target.value = '';
+  });
 
   $('selFront').onclick = bringSelToFront;
   $('selBack').onclick = sendSelToBack;
@@ -1871,6 +2033,10 @@ window.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeModal(false);
     return;
   }
+  if ($('backupModal').classList.contains('show')) {
+    if (e.key === 'Escape') $('backupModal').classList.remove('show');
+    return;
+  }
   if (e.code === 'Space') {
     if (e.target === document.body) e.preventDefault();
     if (!spaceHeld) { spaceHeld = true; canvas.style.cursor = 'grab'; }
@@ -1902,6 +2068,8 @@ window.addEventListener('keydown', e => {
         clipObj = cloneObj(getObject(state.selectedId));
         toast('Copied — Ctrl+V to paste');
       }
+    } else if (k === 'a') {
+      e.preventDefault(); // prevent selecting DOM text
     }
     return;
   }
@@ -2002,5 +2170,10 @@ function boot() {
 boot();
 
 window.addEventListener('DOMContentLoaded', () => setTimeout(mountIcons, 50));
-window.addEventListener('load', () => setTimeout(mountIcons, 100));
-setTimeout(() => { if (document.querySelectorAll('i[data-lucide]').length) mountIcons(); }, 1500);
+window.addEventListener('load', () => {
+  setTimeout(mountIcons, 100);
+  setTimeout(mountIcons, 500);
+  setTimeout(() => {
+    if (!window.lucide) fallbackIcons();
+  }, 3000);
+});

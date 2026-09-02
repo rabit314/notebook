@@ -1,130 +1,135 @@
 # 📓 BrightBoard — Smart Whiteboard & Notebook Web App
 
-![Version](https://img.shields.io/badge/version-1.0.0-E4572E?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
-![HTML5](https://img.shields.io/badge/HTML5-Canvas-orange?style=flat-square)
-![Vanilla JS](https://img.shields.io/badge/Vanilla-JavaScript-F7DF1E?style=flat-square)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-2EA44F?style=for-the-badge&logo=github)](https://rabit314.github.io/notebook/)
+[![Version](https://img.shields.io/badge/Version-v1.0.0-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-A blazing-fast, elegant, multi-page vector whiteboard and digital notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Features a warm classroom paper theme, infinite pan & zoom, rich drawing tools, sticky notes, laser pointer, real-time page thumbnails, localStorage persistence, and 2× high-resolution PNG export.
+A blazing-fast, responsive, multi-page vector whiteboard and notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Designed with a warm classroom paper aesthetic (`#FCFAF3`), persimmon accents (`#E4572E`), and zero external framework bloat.
 
----
-
-## ✨ Features
-
-- ✍️ **Rich Vector Drawing Tools**:
-  - **Smooth Pen**: Speed-tapered bezier curves for natural handwriting.
-  - **Highlighter**: Semi-transparent multiply blend mode for clean text highlighting.
-  - **Geometric Shapes**: Lines, Rectangles, Ellipses, and Arrows with Shift-to-snap angle/aspect ratio constraints.
-  - **Text Tool**: Dynamic inline text editor with custom sizing and color.
-  - **Sticky Notes**: Handwritten pastel notes (Caveat font) with automatic word wrapping and custom palette.
-  - **Object Eraser**: Continuous sweep path collision detection for instant stroke & object removal.
-  - **Laser Pointer**: Glowing, fading laser trail (750ms decay) for presentations and lectures.
-- 🔍 **Infinite Canvas & Viewport**:
-  - Smooth pan (`Space` + drag, middle/right mouse drag).
-  - Smooth zoom (`Ctrl` + Wheel, Zoom In/Out buttons, pinch-to-zoom on touch screens).
-  - 1-click **Reset to 100%** and **Fit Content to Screen**.
-- 📄 **Multi-Page Notebook System**:
-  - Real-time thumbnail previews with asynchronous dirty tracking.
-  - Add, switch, and delete pages with safety confirmation.
-  - Individual background grid types per page: **Blank**, **Dotted**, **Grid**, **Ruled**.
-- 🎯 **Object Selection & Manipulation**:
-  - 4-corner bounding box with uniform proportional scaling.
-  - Move, Nudge with arrow keys (`Shift` for 4× steps).
-  - Duplicate (`Ctrl+D` or `Alt`+drag).
-  - Layer ordering: Bring to Front (`]`), Send to Back (`[`).
-  - Delete with `Del` or `Backspace`.
-- 📋 **Universal Clipboard & Media**:
-  - Copy and paste objects within the board (`Ctrl+C`, `Ctrl+V`).
-  - Direct paste of images from system clipboard or file explorer.
-  - Direct paste of external text into automatic text blocks.
-  - Drag-and-drop image file import.
-- 💾 **Autosave & Export**:
-  - Debounced `localStorage` autosave with automatic orphaned image cleanup.
-  - Clean state restoration on browser reload.
-  - 2× High-Resolution PNG export cropped directly to content bounding box.
-- 🏷️ **Version Badge**:
-  - Discrete, glassmorphic version indicator (`v1.0.0`) pinned in the bottom-right corner.
+🔗 **Live App**: [https://rabit314.github.io/notebook/](https://rabit314.github.io/notebook/)
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## 🌟 Key Features
 
-| Key / Combination | Action |
-|---|---|
-| `V` | Select / Move Tool |
-| `P` | Freehand Pen |
-| `H` | Highlighter |
-| `E` | Object Eraser |
-| `L` | Straight Line |
-| `R` | Rectangle (Hold `Shift` for square) |
-| `O` | Ellipse (Hold `Shift` for circle) |
-| `A` | Arrow |
-| `T` | Text Box |
-| `N` | Sticky Note |
-| `K` | Laser Pointer |
-| `Space` (Hold) | Pan canvas with any tool |
-| `Ctrl` + `Z` / `Ctrl` + `Shift` + `Z` | Undo / Redo |
-| `Ctrl` + `Y` | Redo |
-| `Ctrl` + `C` / `Ctrl` + `V` | Copy / Paste object or text |
-| `Ctrl` + `D` | Duplicate selection |
-| `Alt` + Drag | Quick duplicate while moving |
-| `[` / `]` | Send to Back / Bring to Front |
-| `Arrow Keys` | Nudge selection (Hold `Shift` for bigger steps) |
-| `Del` / `Backspace` | Delete selected object |
-| `Ctrl` + `S` | Manual save to browser storage |
-| `?` | Toggle shortcuts & help panel |
-| `Esc` | Deselect object / close dialog / dismiss text editor |
+### ✍️ Intelligent Vector Drawing Tools
+- **Velocity-Tapered Pen**: Freehand drawing with smooth quadratic Bézier interpolation and speed-dependent stroke tapering for a natural pen-on-paper feel.
+- **Multiply-Blend Highlighter**: Authentic fluorescent marker that multiplies underneath black ink, preserving line contrast.
+- **Geometric Shapes**: Lines, Rectangles, Ellipses, and Arrows with `Shift`-key aspect ratio lock (perfect squares, circles, and 15° snapped angles) and optional tint fill.
+- **Handwritten Sticky Notes**: Warm pastel sticky notes (Caveat font) with automatic multi-paragraph word wrapping, custom color palettes, and inline editing.
+- **Inline Text Boxes**: Direct typographic annotation (Nunito font) with adjustable font sizes and real-time canvas alignment.
+- **Continuous Sweep Eraser**: Swept-circle path collision algorithm that instantly erases entire strokes and objects without leaving jagged artifacts.
+- **Laser Pointer**: Luminous, self-decaying (750ms trail) red laser for lectures, meetings, presentations, and screen sharing.
 
----
+### 📄 Multi-Page Notebook System
+- **Real-Time Asynchronous Thumbnails**: Dedicated off-screen thumbnail canvases with dirty-region scheduling for zero-lag page management.
+- **Page Management**: Add, switch, and delete pages with safety confirmation.
+- **Independent Page Backgrounds**: Choose between **Blank**, **Dotted Grid**, **Square Grid**, and **Ruled Lines** on a per-page basis.
 
-## 🚀 Getting Started
+### 🎯 Object Manipulation & Inspection
+- **Universal Corner Resizing**: Proportional, uniform scaling from opposite anchor corners across all object types (strokes, shapes, text, sticky notes, images).
+- **Selection Toolbar**: Quick Layering (**Bring to Front** / **Send to Back**), **Duplicate** (`Ctrl+D`), and **Delete**.
+- **Live Toolbar Sync**: Selecting an object dynamically updates toolbar swatches, stroke sliders, and font pickers; tweaking controls updates the selected object in real time!
+- **Keyboard Nudging**: Arrow keys nudge selected items by 3px (`Shift` + Arrow for 12px jumps).
 
-### Run Locally
+### 📋 Universal Clipboard & Media Import
+- **Internal Object Copy/Paste**: `Ctrl+C` and `Ctrl+V` clone any element with automatic offset.
+- **System Clipboard Paste**: Direct pasting of screenshots/images or external text from your operating system clipboard directly onto the canvas.
+- **Drag & Drop**: Drop image files (`.png`, `.jpg`, `.webp`, `.svg`) directly onto the board.
 
-No build step, bundler, or dependencies required! Simply open `index.html` in any modern web browser or serve locally:
+### 💾 Autosave, Export & Portable JSON Backup
+- **Automatic Persistence**: Debounced `localStorage` autosave with automatic orphaned image garbage collection.
+- **2× High-Resolution PNG Export**: One-click raster export cropped tightly to content bounding box.
+- **JSON Backup & Restore**: Export your entire notebook as a `.json` backup file or import existing backups across devices.
 
-```bash
-# Option 1: Python 3
-python -m http.server 8080
-
-# Option 2: Node.js (npx serve)
-npx serve .
-
-# Option 3: VS Code Live Server
-# Right-click index.html -> "Open with Live Server"
-```
-
-Open `http://localhost:8080` in your browser.
+### 🏷️ Discreet Version Badge
+- **Location**: Pinned in the **bottom-right corner** (`v1.0.0`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
 
 ---
 
-## 🌐 Deploy to GitHub Pages
+## ⌨️ Keyboard Shortcuts Reference
 
-1. Push this repository to GitHub:
-   ```bash
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-   git branch -M main
-   git push -u origin main
-   ```
-2. In your GitHub repository, navigate to **Settings** > **Pages**.
-3. Under **Build and deployment** > **Source**, select **Deploy from a branch**.
-4. Choose the `main` branch and `/ (root)` directory, then click **Save**.
-5. Your notebook web app will be live at `https://YOUR_USERNAME.github.io/YOUR_REPO/` within seconds!
+| Key / Shortcut | Tool / Action | Description |
+|---|---|---|
+| <kbd>V</kbd> | **Select Tool** | Move, select, and resize objects |
+| <kbd>P</kbd> | **Pen** | Natural velocity-tapered handwriting |
+| <kbd>H</kbd> | **Highlighter** | Semi-transparent text marker |
+| <kbd>E</kbd> | **Eraser** | Swept-circle object eraser |
+| <kbd>L</kbd> | **Line** | Straight vector line |
+| <kbd>R</kbd> | **Rectangle** | Rectangle (Hold <kbd>Shift</kbd> for square) |
+| <kbd>O</kbd> | **Ellipse** | Ellipse (Hold <kbd>Shift</kbd> for circle) |
+| <kbd>A</kbd> | **Arrow** | Vector arrow with directional head |
+| <kbd>T</kbd> | **Text** | Place editable text box |
+| <kbd>N</kbd> | **Sticky Note** | Place sticky note |
+| <kbd>K</kbd> | **Laser Pointer** | Glowing laser trail for presentations |
+| <kbd>Space</kbd> *(hold)* | **Pan Canvas** | Pan the canvas with any active tool |
+| <kbd>Ctrl</kbd> + <kbd>Z</kbd> | **Undo** | Undo last canvas action |
+| <kbd>Ctrl</kbd> + <kbd>Y</kbd> / <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | **Redo** | Redo last canvas action |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd> | **Copy** | Copy selected object to clipboard |
+| <kbd>Ctrl</kbd> + <kbd>V</kbd> | **Paste** | Paste copied object, image, or text |
+| <kbd>Ctrl</kbd> + <kbd>D</kbd> | **Duplicate** | Duplicate current selection |
+| <kbd>Alt</kbd> + Drag | **Quick Duplicate** | Clone object while moving |
+| <kbd>[</kbd> / <kbd>]</kbd> | **Z-Order** | Send to Back / Bring to Front |
+| <kbd>Arrow Keys</kbd> | **Nudge** | Move selection (Hold <kbd>Shift</kbd> for 4× step) |
+| <kbd>Del</kbd> / <kbd>Backspace</kbd> | **Delete** | Remove selected object |
+| <kbd>Ctrl</kbd> + <kbd>S</kbd> | **Manual Save** | Immediately trigger local storage save |
+| <kbd>?</kbd> | **Help** | Toggle shortcut cheat sheet |
+| <kbd>Esc</kbd> | **Deselect / Cancel** | Deselect active object or dismiss modal |
 
 ---
 
-## 📁 Project Structure
+## 🏗️ Project Architecture
 
 ```
-NoteBook/
-├── index.html         # Main web application entry point
+notebook/
+├── index.html         # Semantic HTML5 entry point & UI overlays
 ├── css/
-│   └── style.css      # Warm classroom theme & glassmorphic styling
+│   └── style.css      # Warm classroom design system & responsive media queries
 ├── js/
-│   └── app.js         # Core whiteboard & notebook engine
-├── .gitignore         # Git ignore rules
-└── README.md          # Documentation & shortcut guide
+│   └── app.js         # Complete vector canvas engine, multi-page controller, & state
+├── .gitignore         # Git ignore configuration
+├── LICENSE            # MIT License
+└── README.md          # Project documentation
 ```
+
+### Key Technical Details
+1. **DPI-Aware Canvas Rendering**: Automatic adjustment for device pixel ratios (`window.devicePixelRatio`) ensures sharp lines on Retina and 4K displays.
+2. **Transform Pipeline**: Unified `worldFromClient` and `paintBoard` matrix transforms for smooth multi-touch pinch-to-zoom and panning.
+3. **Dirty-Region Thumbnail Sweeper**: Asynchronous `setInterval` sweep renders only dirty thumbnails every 400ms, preserving 60 FPS drawing responsiveness.
+4. **Resilient Icon Mounting**: Deferred Lucide icon initialization with multi-stage retry queues and fallback glyph rendering.
+
+---
+
+## 🚀 Local Development
+
+No Node build tools or heavy dependencies required!
+
+### Option 1: Python Built-in Server
+```bash
+# Python 3
+python -m http.server 8080
+```
+Visit `http://localhost:8080` in your browser.
+
+### Option 2: Node.js `npx serve`
+```bash
+npx serve .
+```
+
+### Option 3: Direct File Opening
+Double-click `index.html` to open in any browser directly.
+
+---
+
+## 🌐 GitHub Pages Deployment
+
+This repository is pre-configured for instant zero-config deployment to GitHub Pages:
+
+1. Go to your repository **Settings** ➔ **Pages**.
+2. Under **Build and deployment** ➔ **Source**, select **Deploy from a branch**.
+3. Choose `main` as branch and `/ (root)` as folder, then click **Save**.
+4. Your whiteboard app will be live at:
+   **`https://rabit314.github.io/notebook/`**
 
 ---
 
