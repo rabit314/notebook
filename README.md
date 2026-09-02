@@ -4,7 +4,7 @@
 [![Version](https://img.shields.io/badge/Version-v1.0.0-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-A blazing-fast, responsive, multi-page vector whiteboard and notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Designed with a warm classroom paper aesthetic (`#FCFAF3`), persimmon accents (`#E4572E`), and zero external framework bloat.
+A blazing-fast, responsive, multi-page vector whiteboard and notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Designed with a warm classroom paper aesthetic (`#FCFAF3`), persimmon accents (`#E4572E`), zero external framework bloat, and 100% offline-ready embedded vector icons.
 
 🔗 **Live App**: [https://rabit314.github.io/notebook/](https://rabit314.github.io/notebook/)
 
@@ -21,19 +21,25 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **Continuous Sweep Eraser**: Swept-circle path collision algorithm that instantly erases entire strokes and objects without leaving jagged artifacts.
 - **Laser Pointer**: Luminous, self-decaying (750ms trail) red laser for lectures, meetings, presentations, and screen sharing.
 
-### 📄 Multi-Page Notebook System
-- **Real-Time Asynchronous Thumbnails**: Dedicated off-screen thumbnail canvases with dirty-region scheduling for zero-lag page management.
-- **Page Management**: Add, switch, and delete pages with safety confirmation.
-- **Independent Page Backgrounds**: Choose between **Blank**, **Dotted Grid**, **Square Grid**, and **Ruled Lines** on a per-page basis.
-
-### 🎯 Object Manipulation & Inspection
-- **Universal Corner Resizing**: Proportional, uniform scaling from opposite anchor corners across all object types (strokes, shapes, text, sticky notes, images).
-- **Selection Toolbar**: Quick Layering (**Bring to Front** / **Send to Back**), **Duplicate** (`Ctrl+D`), and **Delete**.
-- **Live Toolbar Sync**: Selecting an object dynamically updates toolbar swatches, stroke sliders, and font pickers; tweaking controls updates the selected object in real time!
+### 🎯 Multi-Selection & Marquee Tool
+- **Marquee Selection**: In the Select tool (`V`), click and drag on empty canvas to draw a selection rectangle that selects multiple objects simultaneously.
+- **Multi-Object Manipulation**: Move, resize, duplicate (`Alt`+drag or `Ctrl+D`), delete, and layer-reorder multiple objects together.
+- **Live Toolbar Sync**: Selecting objects dynamically updates toolbar swatches, stroke sliders, and font pickers; tweaking controls updates all selected objects in real time!
 - **Keyboard Nudging**: Arrow keys nudge selected items by 3px (`Shift` + Arrow for 12px jumps).
 
+### 🔍 Intuitive Navigation & Scrolling
+- **Vertical Scroll**: Standard mouse wheel scrolls up and down (`panY`).
+- **Horizontal Scroll**: `Shift` + mouse wheel scrolls left and right (`panX`).
+- **Zoom**: `Ctrl` / `Cmd` + mouse wheel zooms in and out centered at the cursor.
+
+### 📄 Multi-Page Notebook & Instant Safety
+- **Cross Button on All Pages**: Every page thumbnail (including single page) features an instant cross button.
+- **Zero-Friction Clear & Delete**: Clearing a page (via top-bar trash button or thumbnail cross) or deleting pages happens instantly without annoying modal prompts.
+- **Full `Ctrl+Z` Recovery**: Pressing `Ctrl+Z` immediately restores accidentally cleared pages or deleted pages with all drawings, shapes, and text intact!
+- **Independent Page Backgrounds**: Choose between **Blank**, **Dotted Grid**, **Square Grid**, and **Ruled Lines** on a per-page basis.
+
 ### 📋 Universal Clipboard & Media Import
-- **Internal Object Copy/Paste**: `Ctrl+C` and `Ctrl+V` clone any element with automatic offset.
+- **Multi-Object Copy/Paste**: `Ctrl+C` and `Ctrl+V` clone any selection of elements with automatic offset.
 - **System Clipboard Paste**: Direct pasting of screenshots/images or external text from your operating system clipboard directly onto the canvas.
 - **Drag & Drop**: Drop image files (`.png`, `.jpg`, `.webp`, `.svg`) directly onto the board.
 
@@ -51,7 +57,7 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 
 | Key / Shortcut | Tool / Action | Description |
 |---|---|---|
-| <kbd>V</kbd> | **Select Tool** | Move, select, and resize objects |
+| <kbd>V</kbd> | **Select Tool** | Click & drag marquee for multi-selection, move, resize |
 | <kbd>P</kbd> | **Pen** | Natural velocity-tapered handwriting |
 | <kbd>H</kbd> | **Highlighter** | Semi-transparent text marker |
 | <kbd>E</kbd> | **Eraser** | Swept-circle object eraser |
@@ -63,18 +69,22 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 | <kbd>N</kbd> | **Sticky Note** | Place sticky note |
 | <kbd>K</kbd> | **Laser Pointer** | Glowing laser trail for presentations |
 | <kbd>Space</kbd> *(hold)* | **Pan Canvas** | Pan the canvas with any active tool |
-| <kbd>Ctrl</kbd> + <kbd>Z</kbd> | **Undo** | Undo last canvas action |
+| <kbd>Scroll</kbd> | **Scroll Up/Down** | Pan canvas vertically |
+| <kbd>Shift</kbd> + <kbd>Scroll</kbd> | **Scroll Left/Right** | Pan canvas horizontally |
+| <kbd>Ctrl</kbd> + <kbd>Scroll</kbd> | **Zoom In/Out** | Zoom canvas centered at cursor |
+| <kbd>Ctrl</kbd> + <kbd>Z</kbd> | **Undo** | Undo last edit, clear, or deleted page |
 | <kbd>Ctrl</kbd> + <kbd>Y</kbd> / <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | **Redo** | Redo last canvas action |
-| <kbd>Ctrl</kbd> + <kbd>C</kbd> | **Copy** | Copy selected object to clipboard |
-| <kbd>Ctrl</kbd> + <kbd>V</kbd> | **Paste** | Paste copied object, image, or text |
+| <kbd>Ctrl</kbd> + <kbd>A</kbd> | **Select All** | Select all objects on the current page |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd> | **Copy** | Copy selected objects to clipboard |
+| <kbd>Ctrl</kbd> + <kbd>V</kbd> | **Paste** | Paste copied objects, image, or text |
 | <kbd>Ctrl</kbd> + <kbd>D</kbd> | **Duplicate** | Duplicate current selection |
-| <kbd>Alt</kbd> + Drag | **Quick Duplicate** | Clone object while moving |
+| <kbd>Alt</kbd> + Drag | **Quick Duplicate** | Clone selected objects while moving |
 | <kbd>[</kbd> / <kbd>]</kbd> | **Z-Order** | Send to Back / Bring to Front |
 | <kbd>Arrow Keys</kbd> | **Nudge** | Move selection (Hold <kbd>Shift</kbd> for 4× step) |
-| <kbd>Del</kbd> / <kbd>Backspace</kbd> | **Delete** | Remove selected object |
+| <kbd>Del</kbd> / <kbd>Backspace</kbd> | **Delete** | Remove selected objects |
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | **Manual Save** | Immediately trigger local storage save |
 | <kbd>?</kbd> | **Help** | Toggle shortcut cheat sheet |
-| <kbd>Esc</kbd> | **Deselect / Cancel** | Deselect active object or dismiss modal |
+| <kbd>Esc</kbd> | **Deselect / Cancel** | Deselect active objects or dismiss modal |
 
 ---
 
@@ -82,21 +92,15 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 
 ```
 notebook/
-├── index.html         # Semantic HTML5 entry point & UI overlays
+├── index.html         # Semantic HTML5 entry point with embedded offline SVGs
 ├── css/
 │   └── style.css      # Warm classroom design system & responsive media queries
 ├── js/
-│   └── app.js         # Complete vector canvas engine, multi-page controller, & state
+│   └── app.js         # Complete vector canvas engine, multi-selection, & state
 ├── .gitignore         # Git ignore configuration
 ├── LICENSE            # MIT License
 └── README.md          # Project documentation
 ```
-
-### Key Technical Details
-1. **DPI-Aware Canvas Rendering**: Automatic adjustment for device pixel ratios (`window.devicePixelRatio`) ensures sharp lines on Retina and 4K displays.
-2. **Transform Pipeline**: Unified `worldFromClient` and `paintBoard` matrix transforms for smooth multi-touch pinch-to-zoom and panning.
-3. **Dirty-Region Thumbnail Sweeper**: Asynchronous `setInterval` sweep renders only dirty thumbnails every 400ms, preserving 60 FPS drawing responsiveness.
-4. **Resilient Icon Mounting**: Deferred Lucide icon initialization with multi-stage retry queues and fallback glyph rendering.
 
 ---
 

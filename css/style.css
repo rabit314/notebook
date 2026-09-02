@@ -583,17 +583,18 @@ input[type=range]::-moz-range-thumb {
   position: absolute;
   top: 3px;
   right: 3px;
-  width: 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
   border: none;
   border-radius: 6px;
-  background: rgba(35, 32, 26, .72);
+  background: rgba(35, 32, 26, .78);
   color: #fff;
   display: grid;
   place-items: center;
   cursor: pointer;
   opacity: 0;
-  transition: opacity .15s;
+  transition: opacity .15s, background .15s;
+  z-index: 5;
 }
 .pthumb:hover .pdel {
   opacity: 1;
@@ -605,6 +606,11 @@ input[type=range]::-moz-range-thumb {
   width: 12px;
   height: 12px;
   stroke-width: 2.5;
+}
+@media (hover: none) {
+  .pdel {
+    opacity: 0.85;
+  }
 }
 #addPage {
   width: 52px;

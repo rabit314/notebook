@@ -38,11 +38,12 @@ const state = {
   noteColor: NOTES[0],
   fill: false,           // light tint fill for rect / ellipse
   pageIndex: 0,
-  selectedId: null,
+  selectedIds: new Set(),// multi-selection support
 };
 
 const IMG = new Map();   // imgId -> { el, src, w, h }
 const pages = [];
+const deletedPagesHistory = []; // stack of { page, index } for Ctrl+Z restoration
 const page = () => pages[state.pageIndex];
 
 function newPage(bg) {
@@ -65,12 +66,13 @@ let laserPts = [];       // laser trail in SCREEN coordinates
 let needsRender = true;
 let spaceHeld = false;
 let modalOpen = false;
-let clipObj = null;      // internal object clipboard
+let clipObjects = null;  // clipboard objects array for multi-copy/paste
 let lastPtr = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 const activePtrs = new Map();   // pointerId -> {x,y}  (for pinch gestures)
 let lastTapTime = 0;     // for mobile double-tap detection
 
 const getObject = id => page().objects.find(o => o.id === id);
+const getSelectedObjects = () => page().objects.filter(o => state.selectedIds.has(o.id));
 const removeObject = id => {
   const p = page().objects;
   const i = p.findIndex(o => o.id === id);
@@ -468,8 +470,12 @@ function drawLaser(c) {
   c.restore();
 }
 
-function selHandleScreen(o, v) {
-  const b = boundsOf(o);
+function rectsIntersect(b1, b2) {
+  if (!b1 || !b2) return false;
+  return !(b1.x + b1.w < b2.x || b2.x + b2.w < b1.x || b1.y + b1.h < b2.y || b2.y + b2.h < b1.y);
+}
+
+function selHandleScreen(b, v) {
   if (!b) return [];
   const P = 7;
   const x = b.x * v.zoom + v.panX - P, y = b.y * v.zoom + v.panY - P;
@@ -483,10 +489,12 @@ function selHandleScreen(o, v) {
 }
 
 function drawSelectionOverlay(v) {
-  const o = getObject(state.selectedId);
+  const selected = getSelectedObjects();
   const bar = $('selActions');
-  if (!o || state.tool !== 'select' || editing) { bar.style.display = 'none'; return; }
-  const hs = selHandleScreen(o, v);
+  if (!selected.length || state.tool !== 'select' || editing) { bar.style.display = 'none'; return; }
+  const b = contentBounds(selected);
+  if (!b) { bar.style.display = 'none'; return; }
+  const hs = selHandleScreen(b, v);
   if (!hs.length) { bar.style.display = 'none'; return; }
   const { sx: x, sy: y } = hs[0];
   const w = hs[1].sx - x, h = hs[3].sy - y;
@@ -520,6 +528,24 @@ function render() {
     if (action.type === 'shape') { const t = tempShapeObj(); if (t) objs = objs.concat([t]); }
   }
   paintBoard(ctx, VW, VH, v, p.bg, objs, editing ? editing.obj.id : null);
+
+  // Marquee selection box preview
+  if (action && action.type === 'marquee') {
+    ctx.save();
+    ctx.translate(v.panX, v.panY);
+    ctx.scale(v.zoom, v.zoom);
+    const mx = Math.min(action.x0, action.x1);
+    const my = Math.min(action.y0, action.y1);
+    const mw = Math.abs(action.x1 - action.x0);
+    const mh = Math.abs(action.y1 - action.y0);
+    ctx.fillStyle = 'rgba(228, 87, 46, 0.08)';
+    ctx.fillRect(mx, my, mw, mh);
+    ctx.strokeStyle = ACCENT;
+    ctx.lineWidth = 1 / v.zoom;
+    ctx.setLineDash([5 / v.zoom, 4 / v.zoom]);
+    ctx.strokeRect(mx, my, mw, mh);
+    ctx.restore();
+  }
 
   if (action && action.type === 'sticky' && action.moved) {
     ctx.save();
@@ -673,7 +699,7 @@ canvas.addEventListener('pointerdown', e => {
     const w = worldFromClient(e.clientX, e.clientY);
     const hit = hitTest(w, 4);
     if (hit && (hit.type === 'text' || hit.type === 'sticky')) {
-      state.selectedId = hit.id;
+      state.selectedIds = new Set([hit.id]);
       openEditor(hit, hit.type);
       return;
     }
@@ -773,6 +799,11 @@ canvas.addEventListener('pointermove', e => {
       if (Math.hypot(action.x1 - action.x0, action.y1 - action.y0) > 6) action.moved = true;
       needsRender = true;
       break;
+    case 'marquee':
+      action.x1 = w.x; action.y1 = w.y;
+      updateMarqueeSelection(action);
+      needsRender = true;
+      break;
     case 'pan':
       page().view.panX += e.clientX - action.lx;
       page().view.panY += e.clientY - action.ly;
@@ -842,19 +873,29 @@ canvas.addEventListener('dblclick', e => {
   const w = worldFromClient(e.clientX, e.clientY);
   const hit = hitTest(w, 0);
   if (hit && (hit.type === 'text' || hit.type === 'sticky')) {
-    state.selectedId = hit.id;
+    state.selectedIds = new Set([hit.id]);
     openEditor(hit, hit.type);
   } else if (!hit) {
     createDraftText(w.x, w.y);
   }
 });
 
-/* Zoom on ctrl/cmd+wheel, pan on plain wheel */
+/* ================================================================
+   WHEEL ZOOM & PAN: Normal = Up/Down, Shift = Left/Right, Ctrl = Zoom
+   ================================================================ */
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   if (e.ctrlKey || e.metaKey) {
+    // Zoom in/out at cursor
     zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY);
+  } else if (e.shiftKey) {
+    // Shift + wheel = scroll left / right
+    const v = page().view;
+    const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    v.panX -= delta;
+    needsRender = true;
   } else {
+    // Normal wheel = scroll up / down (and horizontal if mouse has horiz wheel)
     const v = page().view;
     v.panX -= e.deltaX;
     v.panY -= e.deltaY;
@@ -939,7 +980,7 @@ function eraseAt(w, a) {
     if (hit) {
       if (!a.snapped) { pushUndo(); a.snapped = true; }
       removeObject(hit.id);
-      if (state.selectedId === hit.id) state.selectedId = null;
+      if (state.selectedIds.has(hit.id)) state.selectedIds.delete(hit.id);
       removed = true;
     }
   }
@@ -973,7 +1014,7 @@ function updateCursorOverlays(e) {
 }
 
 /* ================================================================
-   7. SELECTION — move / resize / duplicate / delete / z-order
+   7. SELECTION & MULTI-SELECTION (Marquee, Move, Resize, Duplicate)
    ================================================================ */
 function syncToolbarToSelected(o) {
   if (!o) return;
@@ -996,42 +1037,85 @@ function syncToolbarToSelected(o) {
   }
 }
 
+function updateMarqueeSelection(a) {
+  const mx = Math.min(a.x0, a.x1);
+  const my = Math.min(a.y0, a.y1);
+  const mw = Math.abs(a.x1 - a.x0);
+  const mh = Math.abs(a.y1 - a.y0);
+  const marqueeBox = { x: mx, y: my, w: mw, h: mh };
+
+  const currentSelection = new Set(a.prevSelected);
+  for (const o of page().objects) {
+    const ob = boundsOf(o);
+    if (ob && rectsIntersect(ob, marqueeBox)) {
+      currentSelection.add(o.id);
+    }
+  }
+  state.selectedIds = currentSelection;
+}
+
 function handleSelectDown(e, w) {
-  const sel = getObject(state.selectedId);
-  if (sel) {
-    const hs = selHandleScreen(sel, page().view);
+  const selected = getSelectedObjects();
+  if (selected.length) {
+    const b = contentBounds(selected);
+    const hs = selHandleScreen(b, page().view);
     for (const hd of hs) {
       if (Math.hypot(e.clientX - hd.sx, e.clientY - hd.sy) < 11) {
         action = {
           type: 'resize',
-          obj: sel,
+          objects: selected,
           handle: hd.h,
           startW: w,
-          startBounds: boundsOf(sel),
-          so: JSON.parse(JSON.stringify(sel)),
+          startBounds: b,
+          sos: selected.map(o => JSON.parse(JSON.stringify(o))),
           snapped: false
         };
         return;
       }
     }
   }
+
   const hit = hitTest(w, 0);
   if (hit) {
-    let target = hit;
-    if (e.altKey) {                       // Alt-drag = quick duplicate
-      const c = cloneObj(hit);
-      translateObj(c, 16, 16);
-      pushUndo();
-      page().objects.push(c);
-      state.selectedId = c.id;
-      target = c;
-    } else {
-      state.selectedId = hit.id;
+    if (e.shiftKey) {
+      // Toggle selection with Shift
+      if (state.selectedIds.has(hit.id)) state.selectedIds.delete(hit.id);
+      else state.selectedIds.add(hit.id);
+      syncToolbarToSelected(hit);
+    } else if (!state.selectedIds.has(hit.id)) {
+      // Single click on unselected item selects only this item
+      state.selectedIds = new Set([hit.id]);
+      syncToolbarToSelected(hit);
     }
-    syncToolbarToSelected(target);
-    action = { type: 'move', obj: target, lastW: w, startW: w, snapped: false };
+
+    const currentSelected = getSelectedObjects();
+    if (e.altKey) {
+      // Alt-drag = quick duplicate all selected
+      const clones = currentSelected.map(o => {
+        const c = cloneObj(o);
+        translateObj(c, 16, 16);
+        return c;
+      });
+      pushUndo();
+      clones.forEach(c => page().objects.push(c));
+      state.selectedIds = new Set(clones.map(c => c.id));
+      action = { type: 'move', objects: clones, lastW: w, startW: w, snapped: false };
+    } else {
+      action = { type: 'move', objects: currentSelected, lastW: w, startW: w, snapped: false };
+    }
   } else {
-    state.selectedId = null;
+    // Clicked on empty canvas
+    if (!e.shiftKey) {
+      state.selectedIds.clear();
+    }
+    // Start marquee drag
+    action = {
+      type: 'marquee',
+      x0: w.x, y0: w.y,
+      x1: w.x, y1: w.y,
+      sx: e.clientX, sy: e.clientY,
+      prevSelected: new Set(state.selectedIds)
+    };
   }
 }
 
@@ -1047,7 +1131,11 @@ function doMove(w, a) {
     pushUndo();
     a.snapped = true;
   }
-  translateObj(a.obj, w.x - a.lastW.x, w.y - a.lastW.y);
+  const dx = w.x - a.lastW.x;
+  const dy = w.y - a.lastW.y;
+  for (const o of a.objects) {
+    translateObj(o, dx, dy);
+  }
   a.lastW = w;
   needsRender = true;
 }
@@ -1058,7 +1146,7 @@ function doResize(w, a) {
     pushUndo();
     a.snapped = true;
   }
-  const o = a.obj, sb = a.startBounds, so = a.so;
+  const sb = a.startBounds;
   const ax = a.handle.includes('w') ? sb.x + sb.w : sb.x;
   const ay = a.handle.includes('n') ? sb.y + sb.h : sb.y;
   let s = Math.max(
@@ -1067,78 +1155,94 @@ function doResize(w, a) {
   );
   s = clamp(s, 0.06, 14);
 
-  if (o.type === 'stroke') {
-    o.points = so.points.map(p => ({ x: ax + (p.x - ax) * s, y: ay + (p.y - ay) * s, w: p.w }));
-    o.width = Math.max(0.5, so.width * s);
-  } else if (o.x0 !== undefined) {
-    o.x0 = ax + (so.x0 - ax) * s; o.y0 = ay + (so.y0 - ay) * s;
-    o.x1 = ax + (so.x1 - ax) * s; o.y1 = ay + (so.y1 - ay) * s;
-    o.width = Math.max(0.5, so.width * s);
-  } else if (o.type === 'text') {
-    o.fontSize = Math.max(8, so.fontSize * s);
-    o.x = ax + (so.x - ax) * s; o.y = ay + (so.y - ay) * s;
-  } else {
-    o.w = Math.max(12, so.w * s); o.h = Math.max(12, so.h * s);
-    if (o.type === 'sticky') o.fontSize = clamp(so.fontSize * s, 10, 72);
-    o.x = ax + (so.x - ax) * s; o.y = ay + (so.y - ay) * s;
-  }
+  a.objects.forEach((o, idx) => {
+    const so = a.sos[idx];
+    if (o.type === 'stroke') {
+      o.points = so.points.map(p => ({ x: ax + (p.x - ax) * s, y: ay + (p.y - ay) * s, w: p.w }));
+      o.width = Math.max(0.5, so.width * s);
+    } else if (o.x0 !== undefined) {
+      o.x0 = ax + (so.x0 - ax) * s; o.y0 = ay + (so.y0 - ay) * s;
+      o.x1 = ax + (so.x1 - ax) * s; o.y1 = ay + (so.y1 - ay) * s;
+      o.width = Math.max(0.5, so.width * s);
+    } else if (o.type === 'text') {
+      o.fontSize = Math.max(8, so.fontSize * s);
+      o.x = ax + (so.x - ax) * s; o.y = ay + (so.y - ay) * s;
+    } else {
+      o.w = Math.max(12, so.w * s); o.h = Math.max(12, so.h * s);
+      if (o.type === 'sticky') o.fontSize = clamp(so.fontSize * s, 10, 72);
+      o.x = ax + (so.x - ax) * s; o.y = ay + (so.y - ay) * s;
+    }
+  });
   needsRender = true;
 }
 
 function deleteSelection() {
-  if (!state.selectedId) return;
+  if (!state.selectedIds.size) return;
   commitEditor();
   pushUndo();
-  removeObject(state.selectedId);
-  state.selectedId = null;
+  for (const id of state.selectedIds) {
+    removeObject(id);
+  }
+  state.selectedIds.clear();
   scheduleThumb();
   needsRender = true;
 }
 
 function duplicateSelection() {
-  if (!state.selectedId) return;
+  const selected = getSelectedObjects();
+  if (!selected.length) return;
   commitEditor();
-  const o = getObject(state.selectedId);
-  if (!o) return;
-  const c = cloneObj(o);
-  translateObj(c, 24, 24);
+  const clones = selected.map(o => {
+    const c = cloneObj(o);
+    translateObj(c, 24, 24);
+    return c;
+  });
   pushUndo();
-  page().objects.push(c);
-  state.selectedId = c.id;
+  clones.forEach(c => page().objects.push(c));
+  state.selectedIds = new Set(clones.map(c => c.id));
   scheduleThumb();
   needsRender = true;
 }
 
 function bringSelToFront() {
-  const o = getObject(state.selectedId);
-  if (!o) return;
+  const selected = getSelectedObjects();
+  if (!selected.length) return;
   const arr = page().objects;
   pushUndo();
-  arr.splice(arr.indexOf(o), 1);
-  arr.push(o);
+  for (const o of selected) {
+    const idx = arr.indexOf(o);
+    if (idx >= 0) arr.splice(idx, 1);
+    arr.push(o);
+  }
   scheduleThumb();
   needsRender = true;
 }
 
 function sendSelToBack() {
-  const o = getObject(state.selectedId);
-  if (!o) return;
+  const selected = getSelectedObjects();
+  if (!selected.length) return;
   const arr = page().objects;
   pushUndo();
-  arr.splice(arr.indexOf(o), 1);
-  arr.unshift(o);
+  for (let i = selected.length - 1; i >= 0; i--) {
+    const o = selected[i];
+    const idx = arr.indexOf(o);
+    if (idx >= 0) arr.splice(idx, 1);
+    arr.unshift(o);
+  }
   scheduleThumb();
   needsRender = true;
 }
 
 let lastNudge = 0;
 function nudge(dx, dy) {
-  const o = getObject(state.selectedId);
-  if (!o) return;
+  const selected = getSelectedObjects();
+  if (!selected.length) return;
   const now = performance.now();
   if (now - lastNudge > 700) pushUndo();
   lastNudge = now;
-  translateObj(o, dx, dy);
+  for (const o of selected) {
+    translateObj(o, dx, dy);
+  }
   scheduleThumb();
   needsRender = true;
 }
@@ -1215,12 +1319,12 @@ function commitEditor() {
 
   if (kind === 'text') {
     if (!val.trim()) {
-      if (!isNew) { pushUndo(); removeObject(obj.id); if (state.selectedId === obj.id) state.selectedId = null; }
+      if (!isNew) { pushUndo(); removeObject(obj.id); state.selectedIds.delete(obj.id); }
     } else {
       const lines = val.split('\n');
       if (isNew) { pushUndo(); obj.lines = lines; page().objects.push(obj); }
       else if (val !== original) { pushUndo(); obj.lines = lines; }
-      state.selectedId = obj.id;
+      state.selectedIds = new Set([obj.id]);
     }
   } else {
     obj._wrap = null;
@@ -1245,13 +1349,13 @@ function createStickyFrom(a) {
   };
   pushUndo();
   page().objects.push(o);
-  state.selectedId = o.id;
+  state.selectedIds = new Set([o.id]);
   scheduleThumb();
   openEditor(o, 'sticky', true);
 }
 
 /* ================================================================
-   9. HISTORY (undo / redo)
+   9. HISTORY (Undo / Redo for objects and deleted pages)
    ================================================================ */
 const stripCache = o => { const c = { ...o }; delete c._wrap; return c; };
 const snapshot = () => JSON.parse(JSON.stringify(page().objects.map(stripCache)));
@@ -1266,13 +1370,32 @@ function pushUndo() {
 
 function undo() {
   const p = page();
-  if (!p.undo.length) return;
-  p.redo.push(snapshot());
-  p.objects = p.undo.pop();
-  if (state.selectedId && !getObject(state.selectedId)) state.selectedId = null;
-  updateHistoryUI();
-  scheduleThumb();
-  needsRender = true;
+  // 1. If current page has object undo history, undo last change
+  if (p.undo.length) {
+    p.redo.push(snapshot());
+    p.objects = p.undo.pop();
+    state.selectedIds.clear();
+    updateHistoryUI();
+    scheduleThumb();
+    needsRender = true;
+    toast('Undo');
+    return;
+  }
+  // 2. If a deleted page was recorded in history, restore the page!
+  if (deletedPagesHistory.length) {
+    const { page: restoredPage, index } = deletedPagesHistory.pop();
+    const targetIndex = clamp(index, 0, pages.length);
+    pages.splice(targetIndex, 0, restoredPage);
+    state.pageIndex = targetIndex;
+    state.selectedIds.clear();
+    rebuildStrip();
+    syncBgSeg();
+    updateZoomLabel();
+    updateHistoryUI();
+    scheduleSave();
+    needsRender = true;
+    toast(`Page ${targetIndex + 1} restored`);
+  }
 }
 
 function redo() {
@@ -1280,14 +1403,15 @@ function redo() {
   if (!p.redo.length) return;
   p.undo.push(snapshot());
   p.objects = p.redo.pop();
-  if (state.selectedId && !getObject(state.selectedId)) state.selectedId = null;
+  state.selectedIds.clear();
   updateHistoryUI();
   scheduleThumb();
   needsRender = true;
+  toast('Redo');
 }
 
 function updateHistoryUI() {
-  $('undoBtn').disabled = !page().undo.length;
+  $('undoBtn').disabled = (!page().undo.length && !deletedPagesHistory.length);
   $('redoBtn').disabled = !page().redo.length;
 }
 
@@ -1338,7 +1462,7 @@ function registerAndPlace(el, src, w, h, at) {
   const o = { id: uid(), type: 'image', imgId: id, x: c.x - dw / 2, y: c.y - dh / 2, w: dw, h: dh };
   pushUndo();
   page().objects.push(o);
-  state.selectedId = o.id;
+  state.selectedIds = new Set([o.id]);
   scheduleThumb();
   needsRender = true;
   toast('Image added');
@@ -1379,17 +1503,20 @@ window.addEventListener('paste', e => {
     }
   }
 
-  // If internal object copied, paste it
-  if (clipObj) {
+  // If internal objects were copied, paste all with offset
+  if (clipObjects && clipObjects.length) {
     e.preventDefault();
-    const c = cloneObj(clipObj);
-    translateObj(c, 24, 24);
+    const clones = clipObjects.map(o => {
+      const c = cloneObj(o);
+      translateObj(c, 24, 24);
+      return c;
+    });
     pushUndo();
-    page().objects.push(c);
-    state.selectedId = c.id;
+    clones.forEach(c => page().objects.push(c));
+    state.selectedIds = new Set(clones.map(c => c.id));
     scheduleThumb();
     needsRender = true;
-    toast('Object pasted');
+    toast(`${clones.length} object${clones.length > 1 ? 's' : ''} pasted`);
     return;
   }
 
@@ -1412,7 +1539,7 @@ window.addEventListener('paste', e => {
     };
     pushUndo();
     page().objects.push(o);
-    state.selectedId = o.id;
+    state.selectedIds = new Set([o.id]);
     scheduleThumb();
     needsRender = true;
     toast('Text pasted');
@@ -1490,17 +1617,15 @@ function restoreFromJSONFile(file) {
     try {
       const data = JSON.parse(e.target.result);
       if (data && Array.isArray(data.pages) && data.pages.length) {
-        showConfirm('Restore Notebook?', 'This will replace current pages with the backup data.', 'Restore', () => {
-          restoreBoard(data);
-          rebuildStrip();
-          syncBgSeg();
-          updateZoomLabel();
-          updateHistoryUI();
-          scheduleSave();
-          needsRender = true;
-          $('backupModal').classList.remove('show');
-          toast('Notebook restored from JSON');
-        });
+        restoreBoard(data);
+        rebuildStrip();
+        syncBgSeg();
+        updateZoomLabel();
+        updateHistoryUI();
+        scheduleSave();
+        needsRender = true;
+        $('backupModal').classList.remove('show');
+        toast('Notebook restored from JSON');
       } else {
         toast('Invalid notebook backup file');
       }
@@ -1530,14 +1655,18 @@ function rebuildStrip() {
     n.className = 'pnum';
     n.textContent = i + 1;
     d.appendChild(n);
-    if (pages.length > 1) {
-      const del = document.createElement('button');
-      del.className = 'pdel';
-      del.title = 'Delete page';
-      del.innerHTML = X_SVG;
-      del.onclick = ev => { ev.stopPropagation(); confirmDeletePage(i); };
-      d.appendChild(del);
-    }
+
+    // Always show cross button (even when 1 page is open)
+    const del = document.createElement('button');
+    del.className = 'pdel';
+    del.title = pages.length === 1 ? 'Clear this page' : 'Delete page';
+    del.innerHTML = X_SVG;
+    del.onclick = ev => {
+      ev.stopPropagation();
+      deleteOrClearPage(i);
+    };
+    d.appendChild(del);
+
     d.onclick = () => switchPage(i);
     strip.appendChild(d);
   });
@@ -1553,7 +1682,7 @@ function switchPage(i) {
   if (i === state.pageIndex || i < 0 || i >= pages.length) return;
   commitEditor();
   state.pageIndex = i;
-  state.selectedId = null;
+  state.selectedIds.clear();
   syncBgSeg();
   updateZoomLabel();
   updateHistoryUI();
@@ -1565,26 +1694,54 @@ function addPage() {
   commitEditor();
   pages.push(newPage(page().bg));
   state.pageIndex = pages.length - 1;
-  state.selectedId = null;
+  state.selectedIds.clear();
   rebuildStrip();
   scheduleSave();
   needsRender = true;
   toast(`Page ${pages.length} created`);
 }
 
-function confirmDeletePage(i) {
-  showConfirm('Delete page?', `Page ${i + 1} and everything on it will be removed. This cannot be undone.`, 'Delete', () => {
-    pages.splice(i, 1);
-    if (state.pageIndex >= pages.length) state.pageIndex = pages.length - 1;
-    state.selectedId = null;
-    rebuildStrip();
-    syncBgSeg();
-    updateZoomLabel();
-    updateHistoryUI();
-    scheduleSave();
-    needsRender = true;
-    toast('Page deleted');
-  });
+function deleteOrClearPage(i) {
+  commitEditor();
+  if (pages.length === 1) {
+    // Only 1 page open: clear all objects on it immediately without confirmation
+    const cur = pages[0];
+    if (cur.objects.length > 0) {
+      pushUndo();
+      cur.objects = [];
+      state.selectedIds.clear();
+      scheduleThumb();
+      needsRender = true;
+      toast('Page cleared — Ctrl+Z to undo');
+    } else {
+      toast('Page is already empty');
+    }
+    return;
+  }
+  // Multiple pages: delete the page immediately without confirmation and save to deletedPagesHistory for Ctrl+Z
+  const removed = pages.splice(i, 1)[0];
+  deletedPagesHistory.push({ page: removed, index: i });
+  if (state.pageIndex >= pages.length) state.pageIndex = pages.length - 1;
+  state.selectedIds.clear();
+  rebuildStrip();
+  syncBgSeg();
+  updateZoomLabel();
+  updateHistoryUI();
+  scheduleSave();
+  needsRender = true;
+  toast('Page deleted — Ctrl+Z to restore');
+}
+
+function clearCurrentPage() {
+  commitEditor();
+  const p = page();
+  if (!p.objects.length) { toast('Page is already empty'); return; }
+  pushUndo();
+  p.objects = [];
+  state.selectedIds.clear();
+  scheduleThumb();
+  needsRender = true;
+  toast('Page cleared — Ctrl+Z to undo');
 }
 
 function renderThumb(p) {
@@ -1676,7 +1833,7 @@ function restoreBoard(d) {
     pages.push(p);
   });
   state.pageIndex = clamp(d.pageIndex | 0, 0, pages.length - 1);
-  state.selectedId = null;
+  state.selectedIds.clear();
   (d.images || []).forEach(([id, src]) => {
     const el = new Image();
     el.onload = () => {
@@ -1705,14 +1862,12 @@ function buildSwatches() {
     b.title = col;
     b.onclick = () => {
       setColor(col);
-      if (state.selectedId) {
-        const o = getObject(state.selectedId);
-        if (o && o.color) {
-          pushUndo();
-          o.color = col;
-          scheduleThumb();
-          needsRender = true;
-        }
+      const selected = getSelectedObjects();
+      if (selected.length) {
+        pushUndo();
+        selected.forEach(o => { if (o.color) o.color = col; });
+        scheduleThumb();
+        needsRender = true;
       }
     };
     row.appendChild(b);
@@ -1735,14 +1890,12 @@ function buildNotePalette() {
     b.title = 'Note colour';
     b.onclick = () => {
       setNoteColor(col);
-      if (state.selectedId) {
-        const o = getObject(state.selectedId);
-        if (o && o.type === 'sticky') {
-          pushUndo();
-          o.color = col;
-          scheduleThumb();
-          needsRender = true;
-        }
+      const selected = getSelectedObjects();
+      if (selected.length) {
+        pushUndo();
+        selected.forEach(o => { if (o.type === 'sticky') o.color = col; });
+        scheduleThumb();
+        needsRender = true;
       }
     };
     $('noteRow').appendChild(b);
@@ -1855,86 +2008,66 @@ function bindUI() {
   $('undoBtn').onclick = () => { commitEditor(); undo(); };
   $('redoBtn').onclick = () => { commitEditor(); redo(); };
 
-  $('clearBtn').onclick = () => {
-    commitEditor();
-    if (!page().objects.length) { toast('Page is already empty'); return; }
-    showConfirm('Clear this page?', 'All objects on this page will be removed. You can undo with Ctrl+Z.', 'Clear', () => {
-      pushUndo();
-      page().objects = [];
-      state.selectedId = null;
-      scheduleThumb();
-      needsRender = true;
-      toast('Page cleared');
-    });
-  };
+  // Clear button clears board immediately without modal popup!
+  $('clearBtn').onclick = clearCurrentPage;
 
   $('customColor').addEventListener('input', e => {
     state.custom = e.target.value;
     $('customSw').style.setProperty('--cc', e.target.value);
     setColor(e.target.value);
-    if (state.selectedId) {
-      const o = getObject(state.selectedId);
-      if (o && o.color) {
-        pushUndo();
-        o.color = e.target.value;
-        scheduleThumb();
-        needsRender = true;
-      }
+    const selected = getSelectedObjects();
+    if (selected.length) {
+      pushUndo();
+      selected.forEach(o => { if (o.color) o.color = e.target.value; });
+      scheduleThumb();
+      needsRender = true;
     }
   });
 
   $('widthRange').addEventListener('input', e => {
     state.size = +e.target.value;
     $('widthVal').textContent = state.size;
-    if (state.selectedId) {
-      const o = getObject(state.selectedId);
-      if (o && o.width !== undefined) {
-        pushUndo();
-        o.width = state.size;
-        scheduleThumb();
-        needsRender = true;
-      }
+    const selected = getSelectedObjects();
+    if (selected.length) {
+      pushUndo();
+      selected.forEach(o => { if (o.width !== undefined) o.width = state.size; });
+      scheduleThumb();
+      needsRender = true;
     }
   });
 
   $('fontMinus').onclick = () => {
     state.fontSize = clamp(state.fontSize - 2, 10, 96);
     $('fontVal').textContent = state.fontSize;
-    if (state.selectedId) {
-      const o = getObject(state.selectedId);
-      if (o && o.fontSize !== undefined) {
-        pushUndo();
-        o.fontSize = state.fontSize;
-        scheduleThumb();
-        needsRender = true;
-      }
+    const selected = getSelectedObjects();
+    if (selected.length) {
+      pushUndo();
+      selected.forEach(o => { if (o.fontSize !== undefined) o.fontSize = state.fontSize; });
+      scheduleThumb();
+      needsRender = true;
     }
   };
   $('fontPlus').onclick = () => {
     state.fontSize = clamp(state.fontSize + 2, 10, 96);
     $('fontVal').textContent = state.fontSize;
-    if (state.selectedId) {
-      const o = getObject(state.selectedId);
-      if (o && o.fontSize !== undefined) {
-        pushUndo();
-        o.fontSize = state.fontSize;
-        scheduleThumb();
-        needsRender = true;
-      }
+    const selected = getSelectedObjects();
+    if (selected.length) {
+      pushUndo();
+      selected.forEach(o => { if (o.fontSize !== undefined) o.fontSize = state.fontSize; });
+      scheduleThumb();
+      needsRender = true;
     }
   };
 
   $('fillBtn').onclick = () => {
     state.fill = !state.fill;
     $('fillBtn').classList.toggle('on', state.fill);
-    if (state.selectedId) {
-      const o = getObject(state.selectedId);
-      if (o && o.fill !== undefined) {
-        pushUndo();
-        o.fill = state.fill;
-        scheduleThumb();
-        needsRender = true;
-      }
+    const selected = getSelectedObjects();
+    if (selected.length) {
+      pushUndo();
+      selected.forEach(o => { if (o.fill !== undefined) o.fill = state.fill; });
+      scheduleThumb();
+      needsRender = true;
     }
   };
 
@@ -2037,19 +2170,24 @@ window.addEventListener('keydown', e => {
     } else if (k === 'd') {
       e.preventDefault();
       commitEditor();
-      if (state.selectedId) duplicateSelection();
+      if (state.selectedIds.size) duplicateSelection();
     } else if (k === 's') {
       e.preventDefault();
       saveNow();
       toast('Board saved');
     } else if (k === 'c') {
-      if (state.selectedId) {
+      const selected = getSelectedObjects();
+      if (selected.length) {
         e.preventDefault();
-        clipObj = cloneObj(getObject(state.selectedId));
-        toast('Copied — Ctrl+V to paste');
+        clipObjects = selected.map(cloneObj);
+        toast(`Copied ${selected.length} object${selected.length > 1 ? 's' : ''} — Ctrl+V to paste`);
       }
     } else if (k === 'a') {
       e.preventDefault();
+      // Ctrl+A = Select All objects on this page!
+      state.selectedIds = new Set(page().objects.map(o => o.id));
+      needsRender = true;
+      toast(`Selected all (${page().objects.length} objects)`);
     }
     return;
   }
@@ -2064,32 +2202,32 @@ window.addEventListener('keydown', e => {
       break;
     case 'Escape':
       if ($('helpPanel').classList.contains('show')) toggleHelp(false);
-      else { state.selectedId = null; needsRender = true; }
+      else { state.selectedIds.clear(); needsRender = true; }
       break;
     case 'Delete':
     case 'Backspace':
-      if (state.selectedId) {
+      if (state.selectedIds.size) {
         e.preventDefault();
         deleteSelection();
       }
       break;
     case '[':
-      if (state.selectedId) sendSelToBack();
+      if (state.selectedIds.size) sendSelToBack();
       break;
     case ']':
-      if (state.selectedId) bringSelToFront();
+      if (state.selectedIds.size) bringSelToFront();
       break;
     case 'ArrowUp':
-      if (state.selectedId) { e.preventDefault(); nudge(0, -(e.shiftKey ? 12 : 3) / page().view.zoom); }
+      if (state.selectedIds.size) { e.preventDefault(); nudge(0, -(e.shiftKey ? 12 : 3) / page().view.zoom); }
       break;
     case 'ArrowDown':
-      if (state.selectedId) { e.preventDefault(); nudge(0,  (e.shiftKey ? 12 : 3) / page().view.zoom); }
+      if (state.selectedIds.size) { e.preventDefault(); nudge(0,  (e.shiftKey ? 12 : 3) / page().view.zoom); }
       break;
     case 'ArrowLeft':
-      if (state.selectedId) { e.preventDefault(); nudge(-(e.shiftKey ? 12 : 3) / page().view.zoom, 0); }
+      if (state.selectedIds.size) { e.preventDefault(); nudge(-(e.shiftKey ? 12 : 3) / page().view.zoom, 0); }
       break;
     case 'ArrowRight':
-      if (state.selectedId) { e.preventDefault(); nudge( (e.shiftKey ? 12 : 3) / page().view.zoom, 0); }
+      if (state.selectedIds.size) { e.preventDefault(); nudge( (e.shiftKey ? 12 : 3) / page().view.zoom, 0); }
       break;
   }
 });
