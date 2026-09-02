@@ -31,6 +31,7 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **Vertical Scroll**: Standard mouse wheel scrolls up and down (`panY`).
 - **Horizontal Scroll**: `Shift` + mouse wheel scrolls left and right (`panX`).
 - **Zoom**: `Ctrl` / `Cmd` + mouse wheel zooms in and out centered at the cursor.
+- **Stroke & Font Wheel Scroll**: Hover over the Stroke or Font controls in the top bar and scroll the mouse wheel to rapidly adjust size (`Shift` for 5× step).
 
 ### 📄 Multi-Page Notebook & Instant Safety
 - **Cross Button on All Pages**: Every page thumbnail (including single page) features an instant cross button.

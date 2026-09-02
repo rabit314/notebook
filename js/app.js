@@ -1931,8 +1931,10 @@ function refreshContextUI() {
   // Contextual width label
   if (t === 'eraser') {
     $('widthLabel').textContent = 'Size';
+    $('widthRow').title = 'Eraser size (Scroll mouse wheel to adjust)';
   } else {
     $('widthLabel').textContent = 'Stroke';
+    $('widthRow').title = 'Stroke size (Scroll mouse wheel to adjust)';
   }
 
   show('swatchRow', sw);
@@ -2024,9 +2026,13 @@ function bindUI() {
     }
   });
 
-  $('widthRange').addEventListener('input', e => {
-    state.size = +e.target.value;
-    $('widthVal').textContent = state.size;
+  function updateStrokeSize(val) {
+    const min = +$('widthRange').min || 1;
+    const max = +$('widthRange').max || 48;
+    const clamped = clamp(Math.round(val), min, max);
+    state.size = clamped;
+    $('widthRange').value = clamped;
+    $('widthVal').textContent = clamped;
     const selected = getSelectedObjects();
     if (selected.length) {
       pushUndo();
@@ -2034,11 +2040,23 @@ function bindUI() {
       scheduleThumb();
       needsRender = true;
     }
+  }
+
+  $('widthRange').addEventListener('input', e => {
+    updateStrokeSize(+e.target.value);
   });
 
-  $('fontMinus').onclick = () => {
-    state.fontSize = clamp(state.fontSize - 2, 10, 96);
-    $('fontVal').textContent = state.fontSize;
+  $('widthRow').addEventListener('wheel', e => {
+    e.preventDefault();
+    const step = e.shiftKey ? 5 : 1;
+    const delta = e.deltaY < 0 ? step : -step;
+    updateStrokeSize(state.size + delta);
+  }, { passive: false });
+
+  function updateFontSize(val) {
+    const clamped = clamp(Math.round(val), 10, 96);
+    state.fontSize = clamped;
+    $('fontVal').textContent = clamped;
     const selected = getSelectedObjects();
     if (selected.length) {
       pushUndo();
@@ -2046,18 +2064,16 @@ function bindUI() {
       scheduleThumb();
       needsRender = true;
     }
-  };
-  $('fontPlus').onclick = () => {
-    state.fontSize = clamp(state.fontSize + 2, 10, 96);
-    $('fontVal').textContent = state.fontSize;
-    const selected = getSelectedObjects();
-    if (selected.length) {
-      pushUndo();
-      selected.forEach(o => { if (o.fontSize !== undefined) o.fontSize = state.fontSize; });
-      scheduleThumb();
-      needsRender = true;
-    }
-  };
+  }
+
+  $('fontMinus').onclick = () => updateFontSize(state.fontSize - 2);
+  $('fontPlus').onclick = () => updateFontSize(state.fontSize + 2);
+
+  $('fontRow').addEventListener('wheel', e => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 2 : -2;
+    updateFontSize(state.fontSize + delta);
+  }, { passive: false });
 
   $('fillBtn').onclick = () => {
     state.fill = !state.fill;
