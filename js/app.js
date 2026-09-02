@@ -30,7 +30,7 @@ const PLUS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
    2. APP STATE
    ================================================================ */
 const state = {
-  tool: 'select',
+  tool: 'pen',
   color: MARKERS[0],
   custom: null,          // last custom colour picked
   size: 4,
@@ -2280,7 +2280,7 @@ function boot() {
   syncBgSeg();
   setColor(state.color);
   setNoteColor(state.noteColor);
-  refreshContextUI();
+  setTool(state.tool);
   updateHistoryUI();
   updateZoomLabel();
 
