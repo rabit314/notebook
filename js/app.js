@@ -1,28 +1,19 @@
 'use strict';
 /* ================================================================
    BRIGHTBOARD — SMART WHITEBOARD & NOTEBOOK ENGINE
-   Version: 1.2.0
+   Version: 1.1.0
    ================================================================ */
 
 /* ================================================================
    1. CONSTANTS & TINY HELPERS
    ================================================================ */
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.1.0';
 const PAPER = '#FCFAF3';
 const ACCENT = '#E4572E';
 const STICKY_INK = '#4A423A';
 const MARKERS = ['#23282F', '#D93A3A', '#E8722A', '#C99700', '#2F9E44',
                  '#0C8599', '#1F6FEB', '#7048E8', '#D6336C'];
 const NOTES = ['#FFE9A8', '#FFD2A8', '#C4E8CE', '#C4DDF0', '#E4CDF2'];
-const BG_COLORS = [
-  { id: 'paper', col: '#FCFAF3', name: 'Warm Paper' },
-  { id: 'white', col: '#FFFFFF', name: 'Pure White' },
-  { id: 'ivory', col: '#FEF9E7', name: 'Ivory Legal' },
-  { id: 'sage',  col: '#F0F5ED', name: 'Soft Sage' },
-  { id: 'blue',  col: '#EEF4F8', name: 'Blueprint' },
-  { id: 'slate', col: '#1E222A', name: 'Blackboard' },
-  { id: 'charcoal', col: '#2B2B2B', name: 'Charcoal' },
-];
 const HIST_MAX = 30;
 const TH_W = 144, TH_H = 81;
 const SAVE_KEY = 'brightboard.board.v1';
@@ -31,17 +22,6 @@ const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const uid = () => Math.random().toString(36).slice(2, 10);
 const cloneObj = o => { const n = JSON.parse(JSON.stringify(o)); n.id = uid(); return n; };
-
-function isDarkColor(hex) {
-  if (!hex || typeof hex !== 'string') return false;
-  let c = hex.replace('#', '');
-  if (c.length === 3) c = c.split('').map(x => x + x).join('');
-  if (c.length !== 6) return false;
-  const r = parseInt(c.slice(0, 2), 16) || 0;
-  const g = parseInt(c.slice(2, 4), 16) || 0;
-  const b = parseInt(c.slice(4, 6), 16) || 0;
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.48;
-}
 
 const X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const PLUS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
@@ -66,12 +46,11 @@ const pages = [];
 const deletedPagesHistory = []; // stack of { page, index } for Ctrl+Z restoration
 const page = () => pages[state.pageIndex];
 
-function newPage(bg, bgColor) {
+function newPage(bg) {
   return {
     id: uid(),
     objects: [],
     bg: bg || 'grid',
-    bgColor: bgColor || PAPER,
     view: { zoom: 1, panX: 0, panY: 0 },
     undo: [],
     redo: [],
@@ -193,8 +172,8 @@ function rr(c, x, y, w, h, r) {
   c.closePath();
 }
 
-function paintBoard(c, W, H, view, bg, bgColor, objects, editingId) {
-  c.fillStyle = bgColor || PAPER;
+function paintBoard(c, W, H, view, bg, objects, editingId) {
+  c.fillStyle = PAPER;
   c.fillRect(0, 0, W, H);
   const worldRect = [
     -view.panX / view.zoom,
@@ -205,18 +184,17 @@ function paintBoard(c, W, H, view, bg, bgColor, objects, editingId) {
   c.save();
   c.translate(view.panX, view.panY);
   c.scale(view.zoom, view.zoom);
-  drawBackgroundPattern(c, view.zoom, bg, bgColor, worldRect);
+  drawBackgroundPattern(c, view.zoom, bg, worldRect);
   drawObjects(c, objects, editingId);
   c.restore();
 }
 
-function drawBackgroundPattern(c, zoom, bg, bgColor, [wx0, wy0, wx1, wy1]) {
+function drawBackgroundPattern(c, zoom, bg, [wx0, wy0, wx1, wy1]) {
   if (bg === 'blank') return;
   c.save();
-  const dark = isDarkColor(bgColor || PAPER);
   if (bg === 'grid') {
     const s = 40;
-    c.strokeStyle = dark ? 'rgba(255,255,255,0.09)' : 'rgba(35,40,47,0.075)';
+    c.strokeStyle = 'rgba(35,40,47,0.075)';
     c.lineWidth = 1 / zoom;
     c.beginPath();
     for (let x = Math.floor(wx0 / s) * s; x <= wx1; x += s) { c.moveTo(x, wy0); c.lineTo(x, wy1); }
@@ -226,7 +204,7 @@ function drawBackgroundPattern(c, zoom, bg, bgColor, [wx0, wy0, wx1, wy1]) {
     let s = 40;
     while (((wx1 - wx0) / s) * ((wy1 - wy0) / s) > 3500) s *= 2;
     const r = 2 / zoom;
-    c.fillStyle = dark ? 'rgba(255,255,255,0.24)' : 'rgba(35,40,47,0.22)';
+    c.fillStyle = 'rgba(35,40,47,0.22)';
     c.beginPath();
     for (let x = Math.floor(wx0 / s) * s; x <= wx1; x += s) {
       for (let y = Math.floor(wy0 / s) * s; y <= wy1; y += s) {
@@ -237,12 +215,12 @@ function drawBackgroundPattern(c, zoom, bg, bgColor, [wx0, wy0, wx1, wy1]) {
     c.fill();
   } else if (bg === 'ruled') {
     const s = 52;
-    c.strokeStyle = dark ? 'rgba(255,255,255,0.11)' : 'rgba(35,40,47,0.10)';
+    c.strokeStyle = 'rgba(35,40,47,0.10)';
     c.lineWidth = 1 / zoom;
     c.beginPath();
     for (let y = Math.floor(wy0 / s) * s; y <= wy1; y += s) { c.moveTo(wx0, y); c.lineTo(wx1, y); }
     c.stroke();
-    c.strokeStyle = dark ? 'rgba(255,130,100,0.45)' : 'rgba(214,90,60,0.30)';
+    c.strokeStyle = 'rgba(214,90,60,0.30)';
     c.lineWidth = 1.5 / zoom;
     c.beginPath();
     c.moveTo(64, wy0);
@@ -549,7 +527,7 @@ function render() {
     if (action.type === 'draw') objs = objs.concat([action.temp]);
     if (action.type === 'shape') { const t = tempShapeObj(); if (t) objs = objs.concat([t]); }
   }
-  paintBoard(ctx, VW, VH, v, p.bg, p.bgColor, objs, editing ? editing.obj.id : null);
+  paintBoard(ctx, VW, VH, v, p.bg, objs, editing ? editing.obj.id : null);
 
   // Marquee selection box preview
   if (action && action.type === 'marquee') {
@@ -1411,7 +1389,7 @@ function undo() {
     state.pageIndex = targetIndex;
     state.selectedIds.clear();
     rebuildStrip();
-    syncBgUI();
+    syncBgSeg();
     updateZoomLabel();
     updateHistoryUI();
     scheduleSave();
@@ -1594,7 +1572,7 @@ function exportPNG() {
   oc.width = W;
   oc.height = H;
   const octx = oc.getContext('2d');
-  paintBoard(octx, W, H, view, p.bg, p.bgColor, p.objects, null);
+  paintBoard(octx, W, H, view, p.bg, p.objects, null);
 
   const fname = `brightboard-p${state.pageIndex + 1}-${new Date().toISOString().slice(0, 10)}.png`;
   const deliver = url => {
@@ -1641,7 +1619,7 @@ function restoreFromJSONFile(file) {
       if (data && Array.isArray(data.pages) && data.pages.length) {
         restoreBoard(data);
         rebuildStrip();
-        syncBgUI();
+        syncBgSeg();
         updateZoomLabel();
         updateHistoryUI();
         scheduleSave();
@@ -1705,7 +1683,7 @@ function switchPage(i) {
   commitEditor();
   state.pageIndex = i;
   state.selectedIds.clear();
-  syncBgUI();
+  syncBgSeg();
   updateZoomLabel();
   updateHistoryUI();
   rebuildStrip();
@@ -1714,10 +1692,9 @@ function switchPage(i) {
 
 function addPage() {
   commitEditor();
-  pages.push(newPage(page().bg, page().bgColor));
+  pages.push(newPage(page().bg));
   state.pageIndex = pages.length - 1;
   state.selectedIds.clear();
-  syncBgUI();
   rebuildStrip();
   scheduleSave();
   needsRender = true;
@@ -1747,7 +1724,7 @@ function deleteOrClearPage(i) {
   if (state.pageIndex >= pages.length) state.pageIndex = pages.length - 1;
   state.selectedIds.clear();
   rebuildStrip();
-  syncBgUI();
+  syncBgSeg();
   updateZoomLabel();
   updateHistoryUI();
   scheduleSave();
@@ -1783,7 +1760,7 @@ function renderThumb(p) {
     view = { zoom: 0.2, panX: TH_W / 2, panY: TH_H / 2 };
   }
   c.setTransform(2, 0, 0, 2, 0, 0);
-  paintBoard(c, TH_W, TH_H, view, p.bg, p.bgColor, p.objects, null);
+  paintBoard(c, TH_W, TH_H, view, p.bg, p.objects, null);
 }
 
 function scheduleThumb() {
@@ -1823,7 +1800,7 @@ function serializeBoard() {
     v: 1,
     appVersion: APP_VERSION,
     pageIndex: state.pageIndex,
-    pages: pages.map(p => ({ bg: p.bg, bgColor: p.bgColor || PAPER, view: p.view, objects: p.objects.map(stripCache) })),
+    pages: pages.map(p => ({ bg: p.bg, view: p.view, objects: p.objects.map(stripCache) })),
     images: [...IMG].map(([id, r]) => [id, r.src]),
   };
 }
@@ -1849,7 +1826,7 @@ window.addEventListener('beforeunload', saveNow);
 function restoreBoard(d) {
   pages.length = 0;
   d.pages.forEach(pd => {
-    const p = newPage(pd.bg || 'grid', pd.bgColor || PAPER);
+    const p = newPage(pd.bg || 'grid');
     p.objects = (pd.objects || []).map(o => { const c = { ...o }; delete c._wrap; return c; });
     if (pd.view) p.view = { zoom: clamp(pd.view.zoom || 1, 0.2, 5),
                             panX: pd.view.panX || 0, panY: pd.view.panY || 0 };
@@ -1970,76 +1947,16 @@ function refreshContextUI() {
   needsRender = true;
 }
 
-function buildBgSwatches() {
-  const wrap = $('bgSwatches');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  BG_COLORS.forEach(item => {
-    const btn = document.createElement('button');
-    btn.className = 'bg-swatch';
-    btn.dataset.col = item.col;
-    btn.style.background = item.col;
-    btn.title = item.name;
-    btn.onclick = () => {
-      setBgColor(item.col);
-      closeBgPopover();
-    };
-    wrap.appendChild(btn);
-  });
-}
-
 function syncBgSeg() {
   const bg = page().bg;
   document.querySelectorAll('#bgSeg button').forEach(b => b.classList.toggle('active', b.dataset.bg === bg));
-}
-
-function syncBgColorUI() {
-  const col = page().bgColor || PAPER;
-  const preview = $('bgColorPreview');
-  if (preview) preview.style.background = col;
-  const popover = $('bgColorPopover');
-  if (popover) {
-    popover.style.setProperty('--bg-custom-cc', col);
-    document.querySelectorAll('#bgSwatches .bg-swatch').forEach(b => {
-      b.classList.toggle('active', b.dataset.col.toUpperCase() === col.toUpperCase());
-    });
-    const customIn = $('customBgColor');
-    if (customIn) customIn.value = col.startsWith('#') && col.length === 7 ? col : '#FCFAF3';
-    const hexLbl = $('customBgHex');
-    if (hexLbl) hexLbl.textContent = col.toUpperCase();
-  }
-}
-
-function syncBgUI() {
-  syncBgSeg();
-  syncBgColorUI();
 }
 
 function setBg(bg) {
   page().bg = bg;
   syncBgSeg();
   scheduleThumb();
-  scheduleSave();
   needsRender = true;
-}
-
-function setBgColor(col) {
-  page().bgColor = col;
-  syncBgColorUI();
-  scheduleThumb();
-  scheduleSave();
-  needsRender = true;
-}
-
-function toggleBgPopover() {
-  const pop = $('bgColorPopover');
-  if (!pop) return;
-  pop.classList.toggle('show');
-}
-
-function closeBgPopover() {
-  const pop = $('bgColorPopover');
-  if (pop) pop.classList.remove('show');
 }
 
 /* Modal */
@@ -2172,32 +2089,6 @@ function bindUI() {
 
   document.querySelectorAll('#bgSeg button').forEach(b => b.onclick = () => setBg(b.dataset.bg));
 
-  // Background color popover wiring
-  const bgBtn = $('bgColorBtn');
-  if (bgBtn) {
-    bgBtn.onclick = e => {
-      e.stopPropagation();
-      toggleBgPopover();
-    };
-  }
-  const bgPop = $('bgColorPopover');
-  if (bgPop) {
-    bgPop.onclick = e => e.stopPropagation();
-  }
-  const customBgIn = $('customBgColor');
-  if (customBgIn) {
-    customBgIn.addEventListener('input', e => {
-      const col = e.target.value;
-      if (bgPop) bgPop.style.setProperty('--bg-custom-cc', col);
-      const hexLbl = $('customBgHex');
-      if (hexLbl) hexLbl.textContent = col.toUpperCase();
-      setBgColor(col);
-    });
-  }
-  document.addEventListener('pointerdown', e => {
-    if (!e.target.closest('#bgColorWrapper')) closeBgPopover();
-  });
-
   $('zoomIn').onclick   = () => { zoomBy(1.25); scheduleSave(); };
   $('zoomOut').onclick  = () => { zoomBy(0.8);  scheduleSave(); };
   $('zoomLabel').onclick = () => { setZoom(1);  scheduleSave(); };
@@ -2274,9 +2165,6 @@ window.addEventListener('keydown', e => {
   if ($('backupModal').classList.contains('show')) {
     if (e.key === 'Escape') $('backupModal').classList.remove('show');
     return;
-  }
-  if ($('bgColorPopover') && $('bgColorPopover').classList.contains('show')) {
-    if (e.key === 'Escape') { closeBgPopover(); return; }
   }
   if (e.code === 'Space') {
     if (e.target === document.body) e.preventDefault();
@@ -2374,7 +2262,6 @@ function boot() {
   resizeCanvas();
   buildSwatches();
   buildNotePalette();
-  buildBgSwatches();
   bindUI();
 
   let restored = false;
@@ -2390,7 +2277,7 @@ function boot() {
   } catch (_) {}
 
   rebuildStrip();
-  syncBgUI();
+  syncBgSeg();
   setColor(state.color);
   setNoteColor(state.noteColor);
   setTool(state.tool);

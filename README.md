@@ -1,10 +1,10 @@
 # 📓 BrightBoard — Smart Whiteboard & Notebook Web App
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-2EA44F?style=for-the-badge&logo=github)](https://rabit314.github.io/notebook/)
-[![Version](https://img.shields.io/badge/Version-v1.2.0-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
+[![Version](https://img.shields.io/badge/Version-v1.1.0-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-A blazing-fast, responsive, multi-page vector whiteboard and notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Designed with a warm classroom paper aesthetic (`#FCFAF3`), customizable page paper themes, persimmon accents (`#E4572E`), zero external framework bloat, and 100% offline-ready embedded vector icons.
+A blazing-fast, responsive, multi-page vector whiteboard and notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Designed with a warm classroom paper aesthetic (`#FCFAF3`), persimmon accents (`#E4572E`), zero external framework bloat, and 100% offline-ready embedded vector icons.
 
 🔗 **Live App**: [https://rabit314.github.io/notebook/](https://rabit314.github.io/notebook/)
 
@@ -20,12 +20,6 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **Inline Text Boxes**: Direct typographic annotation (Nunito font) with adjustable font sizes and real-time canvas alignment.
 - **Continuous Sweep Eraser**: Swept-circle path collision algorithm that instantly erases entire strokes and objects without leaving jagged artifacts.
 - **Laser Pointer**: Luminous, self-decaying (750ms trail) red laser for lectures, meetings, presentations, and screen sharing.
-
-### 🎨 Per-Page Background Themes & Adaptive Grids
-- **Curated Paper Themes**: Choose between **Warm Classroom Paper** (`#FCFAF3`), **Pure White** (`#FFFFFF`), **Ivory Legal Pad** (`#FEF9E7`), **Soft Sage** (`#F0F5ED`), **Blueprint Blue** (`#EEF4F8`), **Blackboard Slate** (`#1E222A`), and **Charcoal** (`#2B2B2B`) on a per-page basis.
-- **Custom Color Picker**: Select any custom paper background color with live hex indicator.
-- **Independent Page Grids**: Choose between **Blank**, **Dotted Grid**, **Square Grid**, and **Ruled Lines**.
-- **Contrast-Adaptive Grid Rendering**: Grid lines, dots, and notebook ruled margins automatically calculate background luminance and switch to crisp light-chalk or dark-ink strokes for optimal legibility.
 
 ### 🎯 Multi-Selection & Marquee Tool
 - **Marquee Selection**: In the Select tool (`V`), click and drag on empty canvas to draw a selection rectangle that selects multiple objects simultaneously.
@@ -43,7 +37,7 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **Cross Button on All Pages**: Every page thumbnail (including single page) features an instant cross button.
 - **Zero-Friction Clear & Delete**: Clearing a page (via top-bar trash button or thumbnail cross) or deleting pages happens instantly without annoying modal prompts.
 - **Full `Ctrl+Z` Recovery**: Pressing `Ctrl+Z` immediately restores accidentally cleared pages or deleted pages with all drawings, shapes, and text intact!
-- **Live Thumbnail Sync**: Bottom page strip thumbnails render with each page's specific background color and grid pattern.
+- **Independent Page Backgrounds**: Choose between **Blank**, **Dotted Grid**, **Square Grid**, and **Ruled Lines** on a per-page basis.
 
 ### 📋 Universal Clipboard & Media Import
 - **Multi-Object Copy/Paste**: `Ctrl+C` and `Ctrl+V` clone any selection of elements with automatic offset.
@@ -51,12 +45,12 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **Drag & Drop**: Drop image files (`.png`, `.jpg`, `.webp`, `.svg`) directly onto the board.
 
 ### 💾 Autosave, Export & Portable JSON Backup
-- **Automatic Persistence**: Debounced `localStorage` autosave preserves all pages, drawings, background colors, and grids with automatic image garbage collection.
-- **2× High-Resolution PNG Export**: One-click raster export cropped tightly to content bounding box rendered with the page's exact background color.
+- **Automatic Persistence**: Debounced `localStorage` autosave with automatic orphaned image garbage collection.
+- **2× High-Resolution PNG Export**: One-click raster export cropped tightly to content bounding box.
 - **JSON Backup & Restore**: Export your entire notebook as a `.json` backup file or import existing backups across devices.
 
 ### 🏷️ Discreet Version Badge
-- **Location**: Pinned in the **bottom-right corner** (`v1.2.0`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
+- **Location**: Pinned in the **bottom-right corner** (`v1.1.0`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
 
 ---
 
