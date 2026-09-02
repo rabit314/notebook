@@ -1847,26 +1847,6 @@ function toggleHelp(force) {
   h.classList.toggle('show', on);
 }
 
-/* Icons */
-function fallbackIcons() {
-  document.querySelectorAll('i[data-lucide]').forEach(el => {
-    const s = document.createElement('span');
-    s.textContent = el.dataset.fb || '•';
-    s.style.cssText = 'font-size:12px;font-weight:700;line-height:1';
-    el.replaceWith(s);
-  });
-}
-
-function mountIcons() {
-  if (window.lucide && typeof window.lucide.createIcons === 'function') {
-    try {
-      window.lucide.createIcons();
-    } catch (_) {
-      fallbackIcons();
-    }
-  }
-}
-
 /* Bind UI Event Handlers */
 function bindUI() {
   document.querySelectorAll('#toolrail .tbtn[data-tool]')
@@ -2069,7 +2049,7 @@ window.addEventListener('keydown', e => {
         toast('Copied — Ctrl+V to paste');
       }
     } else if (k === 'a') {
-      e.preventDefault(); // prevent selecting DOM text
+      e.preventDefault();
     }
     return;
   }
@@ -2163,17 +2143,6 @@ function boot() {
       needsRender = true;
     });
   }
-
-  mountIcons();
 }
 
 boot();
-
-window.addEventListener('DOMContentLoaded', () => setTimeout(mountIcons, 50));
-window.addEventListener('load', () => {
-  setTimeout(mountIcons, 100);
-  setTimeout(mountIcons, 500);
-  setTimeout(() => {
-    if (!window.lucide) fallbackIcons();
-  }, 3000);
-});
