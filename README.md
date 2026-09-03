@@ -1,7 +1,7 @@
 # 📓 BrightBoard — Smart Whiteboard & Notebook Web App
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-2EA44F?style=for-the-badge&logo=github)](https://rabit314.github.io/notebook/)
-[![Version](https://img.shields.io/badge/Version-v1.1.0-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
+[![Version](https://img.shields.io/badge/Version-v1.1.1-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 A blazing-fast, responsive, multi-page vector whiteboard and notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Designed with a warm classroom paper aesthetic (`#FCFAF3`), persimmon accents (`#E4572E`), zero external framework bloat, and 100% offline-ready embedded vector icons.
@@ -50,7 +50,7 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **JSON Backup & Restore**: Export your entire notebook as a `.json` backup file or import existing backups across devices.
 
 ### 🏷️ Discreet Version Badge
-- **Location**: Pinned in the **bottom-right corner** (`v1.1.0`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
+- **Location**: Pinned in the **bottom-right corner** (`v1.1.1`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
 
 ---
 

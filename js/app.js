@@ -1,13 +1,13 @@
 'use strict';
 /* ================================================================
    BRIGHTBOARD — SMART WHITEBOARD & NOTEBOOK ENGINE
-   Version: 1.1.0
+   Version: 1.1.1
    ================================================================ */
 
 /* ================================================================
    1. CONSTANTS & TINY HELPERS
    ================================================================ */
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const PAPER = '#FCFAF3';
 const ACCENT = '#E4572E';
 const STICKY_INK = '#4A423A';
@@ -2159,15 +2159,15 @@ window.addEventListener('keydown', e => {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
 
   if (modalOpen) {
-    if (e.key === 'Escape') closeModal(false);
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(false); }
     return;
   }
   if ($('backupModal').classList.contains('show')) {
-    if (e.key === 'Escape') $('backupModal').classList.remove('show');
+    if (e.key === 'Escape') { e.preventDefault(); $('backupModal').classList.remove('show'); }
     return;
   }
   if (e.code === 'Space') {
-    if (e.target === document.body) e.preventDefault();
+    if (e.target === document.body || e.target === canvas) e.preventDefault();
     if (!spaceHeld) { spaceHeld = true; canvas.style.cursor = 'grab'; }
     return;
   }
@@ -2210,13 +2210,24 @@ window.addEventListener('keydown', e => {
   if (editing || e.altKey) return;
 
   const k = e.key.toLowerCase();
-  if (TOOLKEYS[k]) { setTool(TOOLKEYS[k]); return; }
+  if (TOOLKEYS[k]) {
+    e.preventDefault();
+    setTool(TOOLKEYS[k]);
+    return;
+  }
 
   switch (e.key) {
     case '?':
+    case '/':
+      e.preventDefault();
       toggleHelp();
       break;
+    case "'":
+      // Prevent Firefox Quick Find (links only) from opening on canvas
+      e.preventDefault();
+      break;
     case 'Escape':
+      e.preventDefault();
       if ($('helpPanel').classList.contains('show')) toggleHelp(false);
       else { state.selectedIds.clear(); needsRender = true; }
       break;
@@ -2228,10 +2239,16 @@ window.addEventListener('keydown', e => {
       }
       break;
     case '[':
-      if (state.selectedIds.size) sendSelToBack();
+      if (state.selectedIds.size) {
+        e.preventDefault();
+        sendSelToBack();
+      }
       break;
     case ']':
-      if (state.selectedIds.size) bringSelToFront();
+      if (state.selectedIds.size) {
+        e.preventDefault();
+        bringSelToFront();
+      }
       break;
     case 'ArrowUp':
       if (state.selectedIds.size) { e.preventDefault(); nudge(0, -(e.shiftKey ? 12 : 3) / page().view.zoom); }
@@ -2244,6 +2261,12 @@ window.addEventListener('keydown', e => {
       break;
     case 'ArrowRight':
       if (state.selectedIds.size) { e.preventDefault(); nudge( (e.shiftKey ? 12 : 3) / page().view.zoom, 0); }
+      break;
+    default:
+      // Prevent Firefox "Search for text when you start typing" from hijacking canvas hotkeys
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+      }
       break;
   }
 });
