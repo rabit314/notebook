@@ -1,13 +1,13 @@
 'use strict';
 /* ================================================================
    BRIGHTBOARD — SMART WHITEBOARD & NOTEBOOK ENGINE
-   Version: 1.2.2
+   Version: 1.2.3
    ================================================================ */
 
 /* ================================================================
    1. CONSTANTS & TINY HELPERS
    ================================================================ */
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.2.3';
 const PAPER = '#FCFAF3';
 const ACCENT = '#E4572E';
 const STICKY_INK = '#4A423A';
@@ -552,8 +552,7 @@ function getSelectionHandleAt(clientX, clientY, v) {
   for (const hd of hs) {
     if (hd.h === 'rot') continue;
     const d = Math.hypot(clientX - hd.sx, clientY - hd.sy);
-    if (d <= 7) return { type: 'resize', handle: hd.h, hd, b, selected };
-    if (d <= 26) return { type: 'rotate', handle: hd.h, hd, b, selected };
+    if (d <= 10) return { type: 'resize', handle: hd.h, hd, b, selected };
   }
   return null;
 }
@@ -616,21 +615,6 @@ function drawSelectionOverlay(v) {
     ctx.fillStyle = ACCENT;
     ctx.fill();
     ctx.restore();
-  }
-
-  // Corner rotation hover hint (subtle arc when hovering in outer corner rotate zone)
-  if (hoveredHandle && hoveredHandle.type === 'rotate' && hoveredHandle.handle !== 'rot' && !action) {
-    const hd = hs.find(h => h.h === hoveredHandle.handle);
-    if (hd) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(hd.sx, hd.sy, 14, 0, Math.PI * 2);
-      ctx.strokeStyle = ACCENT;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 3]);
-      ctx.stroke();
-      ctx.restore();
-    }
   }
 
   // Active rotation guides & HUD badge

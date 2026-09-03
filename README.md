@@ -1,7 +1,7 @@
 # 📓 BrightBoard — Smart Whiteboard & Notebook Web App
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-2EA44F?style=for-the-badge&logo=github)](https://rabit314.github.io/notebook/)
-[![Version](https://img.shields.io/badge/Version-v1.2.2-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
+[![Version](https://img.shields.io/badge/Version-v1.2.3-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 A blazing-fast, responsive, multi-page vector whiteboard and notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Designed with a warm classroom paper aesthetic (`#FCFAF3`), persimmon accents (`#E4572E`), zero external framework bloat, and 100% offline-ready embedded vector icons.
@@ -22,7 +22,7 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **Laser Pointer**: Luminous, self-decaying (750ms trail) red laser for lectures, meetings, presentations, and screen sharing.
 
 ### 🎯 Multi-Selection, Marquee Tool & Rotation
-- **Dedicated Rotation Blob & Corner Hover**: Grab the dedicated circular rotation handle extending above the selection box or hover just outside any corner handle to smoothly rotate drawings, shapes, text, stickies, and images.
+- **Dedicated Rotation Blob Handle**: Grab the dedicated circular rotation handle extending cleanly above the selection box to smoothly rotate drawings, shapes, text, stickies, and images. Corners remain dedicated to clean, friction-free resizing.
 - **Angle Alignment & Snapping**: Hold <kbd>Shift</kbd> while rotating to snap precisely to 15° intervals ($0^\circ, 15^\circ, 30^\circ, 45^\circ, 60^\circ, 75^\circ, 90^\circ$, etc.) with a live degree HUD badge!
 - **Marquee Selection**: In the Select tool (`V`), click and drag on empty canvas to draw a selection rectangle that selects multiple objects simultaneously.
 - **Multi-Object Manipulation**: Move, rotate, resize, duplicate (`Alt`+drag or `Ctrl+D`), delete, and layer-reorder multiple objects together.
@@ -52,7 +52,7 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **JSON Backup & Restore**: Export your entire notebook as a `.json` backup file with date & time timestamps or import existing backups across devices.
 
 ### 🏷️ Discreet Version Badge
-- **Location**: Pinned in the **bottom-right corner** (`v1.2.2`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
+- **Location**: Pinned in the **bottom-right corner** (`v1.2.3`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
 
 ---
 
