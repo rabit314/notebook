@@ -1,13 +1,13 @@
 'use strict';
 /* ================================================================
    BRIGHTBOARD — SMART WHITEBOARD & NOTEBOOK ENGINE
-   Version: 1.2.0
+   Version: 1.2.1
    ================================================================ */
 
 /* ================================================================
    1. CONSTANTS & TINY HELPERS
    ================================================================ */
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 const PAPER = '#FCFAF3';
 const ACCENT = '#E4572E';
 const STICKY_INK = '#4A423A';
@@ -22,6 +22,11 @@ const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const uid = () => Math.random().toString(36).slice(2, 10);
 const cloneObj = o => { const n = JSON.parse(JSON.stringify(o)); n.id = uid(); return n; };
+const getTimestamp = () => {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+};
 
 const X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const PLUS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
@@ -1916,7 +1921,7 @@ function exportPNG() {
   const octx = oc.getContext('2d');
   paintBoard(octx, W, H, view, p.bg, p.objects, null);
 
-  const fname = `brightboard-p${state.pageIndex + 1}-${new Date().toISOString().slice(0, 10)}.png`;
+  const fname = `brightboard-p${state.pageIndex + 1}-${getTimestamp()}.png`;
   const deliver = url => {
     const a = document.createElement('a');
     a.href = url;
@@ -1939,11 +1944,12 @@ function exportPNG() {
 
 function exportJSONBackup() {
   const data = serializeBoard();
+  data.exportedAt = new Date().toISOString();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `brightboard-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `brightboard-backup-${getTimestamp()}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
