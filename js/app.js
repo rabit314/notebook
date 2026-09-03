@@ -1,13 +1,13 @@
 'use strict';
 /* ================================================================
    BRIGHTBOARD — SMART WHITEBOARD & NOTEBOOK ENGINE
-   Version: 1.2.1
+   Version: 1.2.2
    ================================================================ */
 
 /* ================================================================
    1. CONSTANTS & TINY HELPERS
    ================================================================ */
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.2.2';
 const PAPER = '#FCFAF3';
 const ACCENT = '#E4572E';
 const STICKY_INK = '#4A423A';
@@ -49,7 +49,7 @@ const state = {
 const IMG = new Map();   // imgId -> { el, src, w, h }
 const pages = [];
 const deletedPagesHistory = []; // stack of { page, index } for Ctrl+Z restoration
-const page = () => pages[state.pageIndex];
+const page = () => pages[state.pageIndex] || pages[0];
 
 function newPage(bg) {
   return {
@@ -1709,7 +1709,7 @@ const snapshot = () => JSON.parse(JSON.stringify(page().objects.map(stripCache))
 
 function pushUndo() {
   const p = page();
-  p.undo.push(snapshot());
+  p.undo.push({ objects: snapshot(), time: Date.now() });
   if (p.undo.length > HIST_MAX) p.undo.shift();
   p.redo.length = 0;
   updateHistoryUI();
@@ -1717,19 +1717,14 @@ function pushUndo() {
 
 function undo() {
   const p = page();
-  // 1. If current page has object undo history, undo last change
-  if (p.undo.length) {
-    p.redo.push(snapshot());
-    p.objects = p.undo.pop();
-    state.selectedIds.clear();
-    updateHistoryUI();
-    scheduleThumb();
-    needsRender = true;
-    toast('Undo');
-    return;
-  }
-  // 2. If a deleted page was recorded in history, restore the page!
-  if (deletedPagesHistory.length) {
+  const lastUndo = p.undo.length ? p.undo[p.undo.length - 1] : null;
+  const lastDel = deletedPagesHistory.length ? deletedPagesHistory[deletedPagesHistory.length - 1] : null;
+
+  const undoTime = lastUndo ? (lastUndo.time || 0) : -1;
+  const delTime = lastDel ? (lastDel.time || 0) : -1;
+
+  // Restore deleted page if it is newer than the last object undo on the current page, or if active page has no undo history
+  if (lastDel && (delTime >= undoTime || !lastUndo)) {
     const { page: restoredPage, index } = deletedPagesHistory.pop();
     const targetIndex = clamp(index, 0, pages.length);
     pages.splice(targetIndex, 0, restoredPage);
@@ -1742,14 +1737,28 @@ function undo() {
     scheduleSave();
     needsRender = true;
     toast(`Page ${targetIndex + 1} restored`);
+    return;
+  }
+
+  if (lastUndo) {
+    const entry = p.undo.pop();
+    p.redo.push({ objects: snapshot(), time: Date.now() });
+    p.objects = Array.isArray(entry) ? entry : entry.objects;
+    state.selectedIds.clear();
+    updateHistoryUI();
+    scheduleThumb();
+    needsRender = true;
+    toast('Undo');
+    return;
   }
 }
 
 function redo() {
   const p = page();
   if (!p.redo.length) return;
-  p.undo.push(snapshot());
-  p.objects = p.redo.pop();
+  const entry = p.redo.pop();
+  p.undo.push({ objects: snapshot(), time: Date.now() });
+  p.objects = Array.isArray(entry) ? entry : entry.objects;
   state.selectedIds.clear();
   updateHistoryUI();
   scheduleThumb();
@@ -1835,9 +1844,22 @@ window.addEventListener('drop', e => {
   if (f) importImageFile(f, worldFromClient(e.clientX, e.clientY));
 });
 
-/* Universal Paste Handler */
+/* Universal Copy / Paste Handlers */
+window.addEventListener('copy', e => {
+  if (editing || (e.target && e.target.tagName === 'TEXTAREA')) return;
+  const selected = getSelectedObjects();
+  if (selected.length) {
+    clipObjects = selected.map(cloneObj);
+    const payload = JSON.stringify({ type: 'brightboard-clip', objects: clipObjects });
+    if (e.clipboardData) {
+      e.clipboardData.setData('text/plain', payload);
+      e.preventDefault();
+    }
+  }
+});
+
 window.addEventListener('paste', e => {
-  if (editing || e.target === $('textEditor')) return;
+  if (editing || (e.target && e.target.tagName === 'TEXTAREA')) return;
   const items = (e.clipboardData && e.clipboardData.items) || [];
   for (const it of items) {
     if (it.type && it.type.startsWith('image/')) {
@@ -1850,8 +1872,30 @@ window.addEventListener('paste', e => {
     }
   }
 
-  // If internal objects were copied, paste all with offset
-  if (clipObjects && clipObjects.length) {
+  const rawText = e.clipboardData && e.clipboardData.getData('text');
+  if (rawText && rawText.trim()) {
+    try {
+      const parsed = JSON.parse(rawText);
+      if (parsed && parsed.type === 'brightboard-clip' && Array.isArray(parsed.objects) && parsed.objects.length) {
+        e.preventDefault();
+        const clones = parsed.objects.map(o => {
+          const c = cloneObj(o);
+          translateObj(c, 24, 24);
+          return c;
+        });
+        pushUndo();
+        clones.forEach(c => page().objects.push(c));
+        state.selectedIds = new Set(clones.map(c => c.id));
+        scheduleThumb();
+        needsRender = true;
+        toast(`${clones.length} object${clones.length > 1 ? 's' : ''} pasted`);
+        return;
+      }
+    } catch (_) {}
+  }
+
+  // If internal objects were copied within current session and no external text on clipboard
+  if (!rawText && clipObjects && clipObjects.length) {
     e.preventDefault();
     const clones = clipObjects.map(o => {
       const c = cloneObj(o);
@@ -1868,7 +1912,7 @@ window.addEventListener('paste', e => {
   }
 
   // If external text copied, paste as Text note at center of viewport
-  const text = e.clipboardData && e.clipboardData.getData('text');
+  const text = rawText;
   if (text && text.trim()) {
     e.preventDefault();
     const v = page().view;
@@ -2068,7 +2112,7 @@ function deleteOrClearPage(i) {
   }
   // Multiple pages: delete the page immediately without confirmation and save to deletedPagesHistory for Ctrl+Z
   const removed = pages.splice(i, 1)[0];
-  deletedPagesHistory.push({ page: removed, index: i });
+  deletedPagesHistory.push({ page: removed, index: i, time: Date.now() });
   if (state.pageIndex >= pages.length) state.pageIndex = pages.length - 1;
   state.selectedIds.clear();
   rebuildStrip();
@@ -2160,19 +2204,22 @@ function scheduleSave() {
 }
 
 function saveNow() {
-  if (saveBroken) return;
   clearTimeout(saveTimer);
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(serializeBoard()));
+    saveBroken = false;
   } catch (e) {
-    saveBroken = true;
-    toast('Autosave paused — board is too large for local storage');
+    if (!saveBroken) {
+      saveBroken = true;
+      toast('Autosave paused — board is too large for local storage');
+    }
   }
 }
 window.addEventListener('beforeunload', saveNow);
 
 function restoreBoard(d) {
   pages.length = 0;
+  deletedPagesHistory.length = 0;
   d.pages.forEach(pd => {
     const p = newPage(pd.bg || 'grid');
     p.objects = (pd.objects || []).map(o => { const c = { ...o }; delete c._wrap; return c; });
