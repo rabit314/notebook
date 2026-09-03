@@ -1,7 +1,7 @@
 # 📓 BrightBoard — Smart Whiteboard & Notebook Web App
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-2EA44F?style=for-the-badge&logo=github)](https://rabit314.github.io/notebook/)
-[![Version](https://img.shields.io/badge/Version-v1.1.1-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
+[![Version](https://img.shields.io/badge/Version-v1.2.0-E4572E?style=for-the-badge)](https://github.com/rabit314/notebook)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 A blazing-fast, responsive, multi-page vector whiteboard and notebook web application built with pure HTML5 Canvas and vanilla JavaScript. Designed with a warm classroom paper aesthetic (`#FCFAF3`), persimmon accents (`#E4572E`), zero external framework bloat, and 100% offline-ready embedded vector icons.
@@ -21,9 +21,11 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **Continuous Sweep Eraser**: Swept-circle path collision algorithm that instantly erases entire strokes and objects without leaving jagged artifacts.
 - **Laser Pointer**: Luminous, self-decaying (750ms trail) red laser for lectures, meetings, presentations, and screen sharing.
 
-### 🎯 Multi-Selection & Marquee Tool
+### 🎯 Multi-Selection, Marquee Tool & Rotation
+- **Dedicated Rotation Blob & Corner Hover**: Grab the dedicated circular rotation handle extending above the selection box or hover just outside any corner handle to smoothly rotate drawings, shapes, text, stickies, and images.
+- **Angle Alignment & Snapping**: Hold <kbd>Shift</kbd> while rotating to snap precisely to 15° intervals ($0^\circ, 15^\circ, 30^\circ, 45^\circ, 60^\circ, 75^\circ, 90^\circ$, etc.) with a live degree HUD badge!
 - **Marquee Selection**: In the Select tool (`V`), click and drag on empty canvas to draw a selection rectangle that selects multiple objects simultaneously.
-- **Multi-Object Manipulation**: Move, resize, duplicate (`Alt`+drag or `Ctrl+D`), delete, and layer-reorder multiple objects together.
+- **Multi-Object Manipulation**: Move, rotate, resize, duplicate (`Alt`+drag or `Ctrl+D`), delete, and layer-reorder multiple objects together.
 - **Live Toolbar Sync**: Selecting objects dynamically updates toolbar swatches, stroke sliders, and font pickers; tweaking controls updates all selected objects in real time!
 - **Keyboard Nudging**: Arrow keys nudge selected items by 3px (`Shift` + Arrow for 12px jumps).
 
@@ -50,7 +52,7 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 - **JSON Backup & Restore**: Export your entire notebook as a `.json` backup file or import existing backups across devices.
 
 ### 🏷️ Discreet Version Badge
-- **Location**: Pinned in the **bottom-right corner** (`v1.1.1`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
+- **Location**: Pinned in the **bottom-right corner** (`v1.2.0`) with a translucent glassmorphic backdrop. Clicking displays version and status information.
 
 ---
 
@@ -81,6 +83,7 @@ A blazing-fast, responsive, multi-page vector whiteboard and notebook web applic
 | <kbd>Ctrl</kbd> + <kbd>D</kbd> | **Duplicate** | Duplicate current selection |
 | <kbd>Alt</kbd> + Drag | **Quick Duplicate** | Clone selected objects while moving |
 | <kbd>[</kbd> / <kbd>]</kbd> | **Z-Order** | Send to Back / Bring to Front |
+| <kbd>Shift</kbd> *(while rotating)* | **Snap Rotation** | Align rotation angle to 15° steps |
 | <kbd>Arrow Keys</kbd> | **Nudge** | Move selection (Hold <kbd>Shift</kbd> for 4× step) |
 | <kbd>Del</kbd> / <kbd>Backspace</kbd> | **Delete** | Remove selected objects |
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | **Manual Save** | Immediately trigger local storage save |

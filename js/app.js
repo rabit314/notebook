@@ -1,13 +1,13 @@
 'use strict';
 /* ================================================================
    BRIGHTBOARD — SMART WHITEBOARD & NOTEBOOK ENGINE
-   Version: 1.1.1
+   Version: 1.2.0
    ================================================================ */
 
 /* ================================================================
    1. CONSTANTS & TINY HELPERS
    ================================================================ */
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.2.0';
 const PAPER = '#FCFAF3';
 const ACCENT = '#E4572E';
 const STICKY_INK = '#4A423A';
@@ -93,6 +93,8 @@ const CURSORS = {
   laser: 'none',
   hand: 'grab'
 };
+
+const ROTATE_CURSOR = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 4 A10 10 0 0 1 24 14' stroke='%23ffffff' stroke-width='4'/%3E%3Cpolyline points='20 4 24 4 24 8' stroke='%23ffffff' stroke-width='4'/%3E%3Cpath d='M14 24 A10 10 0 0 1 4 14' stroke='%23ffffff' stroke-width='4'/%3E%3Cpolyline points='8 24 4 24 4 20' stroke='%23ffffff' stroke-width='4'/%3E%3Cpath d='M14 4 A10 10 0 0 1 24 14' stroke='%2318181b' stroke-width='2'/%3E%3Cpolyline points='20 4 24 4 24 8' stroke='%2318181b' stroke-width='2'/%3E%3Cpath d='M14 24 A10 10 0 0 1 4 14' stroke='%2318181b' stroke-width='2'/%3E%3Cpolyline points='8 24 4 24 4 20' stroke='%2318181b' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E") 14 14, crosshair`;
 
 const TOOLKEYS = {
   v: 'select',
@@ -320,18 +322,32 @@ function drawShape(c, o) {
   } else if (o.type === 'rect') {
     const x = Math.min(o.x0, o.x1), y = Math.min(o.y0, o.y1);
     const w = Math.abs(o.x1 - o.x0), h = Math.abs(o.y1 - o.y0);
-    if (o.fill) {
-      c.globalAlpha = 0.15;
-      c.fillStyle = o.color;
-      c.fillRect(x, y, w, h);
-      c.globalAlpha = 1;
+    if (o.angle) {
+      c.save();
+      c.translate(x + w / 2, y + h / 2);
+      c.rotate(o.angle);
+      if (o.fill) {
+        c.globalAlpha = 0.15;
+        c.fillStyle = o.color;
+        c.fillRect(-w / 2, -h / 2, w, h);
+        c.globalAlpha = 1;
+      }
+      c.strokeRect(-w / 2, -h / 2, w, h);
+      c.restore();
+    } else {
+      if (o.fill) {
+        c.globalAlpha = 0.15;
+        c.fillStyle = o.color;
+        c.fillRect(x, y, w, h);
+        c.globalAlpha = 1;
+      }
+      c.strokeRect(x, y, w, h);
     }
-    c.strokeRect(x, y, w, h);
   } else if (o.type === 'ellipse') {
     const rx = Math.abs(o.x1 - o.x0) / 2, ry = Math.abs(o.y1 - o.y0) / 2;
     if (rx > 0 && ry > 0) {
       c.beginPath();
-      c.ellipse((o.x0 + o.x1) / 2, (o.y0 + o.y1) / 2, rx, ry, 0, 0, Math.PI * 2);
+      c.ellipse((o.x0 + o.x1) / 2, (o.y0 + o.y1) / 2, rx, ry, o.angle || 0, 0, Math.PI * 2);
       if (o.fill) {
         c.globalAlpha = 0.15;
         c.fillStyle = o.color;
@@ -362,57 +378,84 @@ function drawShape(c, o) {
 
 function drawTextObj(c, o) {
   const lines = (o.lines && o.lines.length) ? o.lines : [''];
+  const m = textMetrics(o);
+  c.save();
+  if (o.angle) {
+    c.translate(o.x + m.w / 2, o.y + m.h / 2);
+    c.rotate(o.angle);
+    c.translate(-m.w / 2, -m.h / 2);
+  } else {
+    c.translate(o.x, o.y);
+  }
   c.font = `700 ${o.fontSize}px Nunito, sans-serif`;
   c.fillStyle = o.color;
   c.textBaseline = 'top';
-  let y = o.y;
+  let y = 0;
   for (const ln of lines) {
-    c.fillText(ln, o.x, y);
+    c.fillText(ln, 0, y);
     y += o.fontSize * 1.3;
   }
+  c.restore();
 }
 
 function drawImageObj(c, o) {
   const rec = IMG.get(o.imgId);
   if (!rec || !rec.el.complete) return;
   c.save();
+  if (o.angle) {
+    c.translate(o.x + o.w / 2, o.y + o.h / 2);
+    c.rotate(o.angle);
+    c.translate(-o.w / 2, -o.h / 2);
+  } else {
+    c.translate(o.x, o.y);
+  }
   c.shadowColor = 'rgba(60,45,15,.22)';
   c.shadowBlur = 10;
   c.shadowOffsetY = 4;
-  c.drawImage(rec.el, o.x, o.y, o.w, o.h);
+  c.drawImage(rec.el, 0, 0, o.w, o.h);
   c.restore();
 }
 
 function drawSticky(c, o, paperOnly) {
   c.save();
+  if (o.angle) {
+    c.translate(o.x + o.w / 2, o.y + o.h / 2);
+    c.rotate(o.angle);
+    c.translate(-o.w / 2, -o.h / 2);
+  } else {
+    c.translate(o.x, o.y);
+  }
+  c.save();
   c.shadowColor = 'rgba(90,70,20,.26)';
   c.shadowBlur = 14;
   c.shadowOffsetY = 6;
   c.fillStyle = o.color;
-  rr(c, o.x, o.y, o.w, o.h, 9);
+  rr(c, 0, 0, o.w, o.h, 9);
   c.fill();
   c.restore();
   c.save();
   c.beginPath();
-  c.moveTo(o.x + o.w - 16, o.y + o.h);
-  c.lineTo(o.x + o.w, o.y + o.h - 16);
-  c.lineTo(o.x + o.w, o.y + o.h);
+  c.moveTo(o.w - 16, o.h);
+  c.lineTo(o.w, o.h - 16);
+  c.lineTo(o.w, o.h);
   c.closePath();
   c.fillStyle = 'rgba(0,0,0,.08)';
   c.fill();
   c.restore();
-  if (paperOnly) return;
-  c.save();
-  rr(c, o.x, o.y, o.w, o.h, 9);
-  c.clip();
-  c.font = `600 ${o.fontSize}px Caveat, cursive`;
-  c.fillStyle = STICKY_INK;
-  c.textBaseline = 'top';
-  let y = o.y + 14;
-  for (const ln of stickyLines(c, o)) {
-    if (y > o.y + o.h + o.fontSize) break;
-    c.fillText(ln, o.x + 14, y);
-    y += o.fontSize * 1.12;
+  if (!paperOnly) {
+    c.save();
+    rr(c, 0, 0, o.w, o.h, 9);
+    c.clip();
+    c.font = `600 ${o.fontSize}px Caveat, cursive`;
+    c.fillStyle = STICKY_INK;
+    c.textBaseline = 'top';
+    let y = 14;
+    for (const ln of stickyLines(c, o)) {
+      if (y > o.h + o.fontSize) break;
+      c.fillText(ln, 14, y);
+      y += o.fontSize * 1.12;
+    }
+    c.restore();
   }
   c.restore();
 }
@@ -475,17 +518,39 @@ function rectsIntersect(b1, b2) {
   return !(b1.x + b1.w < b2.x || b2.x + b2.w < b1.x || b1.y + b1.h < b2.y || b2.y + b2.h < b1.y);
 }
 
+let hoveredHandle = null;
+
 function selHandleScreen(b, v) {
   if (!b) return [];
   const P = 7;
   const x = b.x * v.zoom + v.panX - P, y = b.y * v.zoom + v.panY - P;
   const w = b.w * v.zoom + 2 * P, h = b.h * v.zoom + 2 * P;
   return [
-    { h: 'nw', sx: x,      sy: y,      bx: b.x,      by: b.y },
-    { h: 'ne', sx: x + w,  sy: y,      bx: b.x + b.w, by: b.y },
-    { h: 'se', sx: x + w,  sy: y + h,  bx: b.x + b.w, by: b.y + b.h },
-    { h: 'sw', sx: x,      sy: y + h,  bx: b.x,      by: b.y + b.h },
+    { h: 'nw', sx: x,          sy: y,          bx: b.x,          by: b.y },
+    { h: 'ne', sx: x + w,      sy: y,          bx: b.x + b.w,    by: b.y },
+    { h: 'se', sx: x + w,      sy: y + h,      bx: b.x + b.w,    by: b.y + b.h },
+    { h: 'sw', sx: x,          sy: y + h,      bx: b.x,          by: b.y + b.h },
+    { h: 'rot', sx: x + w / 2, sy: y - 26,     bx: b.x + b.w / 2, by: b.y, topX: x + w / 2, topY: y },
   ];
+}
+
+function getSelectionHandleAt(clientX, clientY, v) {
+  const selected = getSelectedObjects();
+  if (!selected.length || state.tool !== 'select' || editing) return null;
+  const b = contentBounds(selected);
+  if (!b) return null;
+  const hs = selHandleScreen(b, v);
+  const rotHd = hs.find(h => h.h === 'rot');
+  if (rotHd && Math.hypot(clientX - rotHd.sx, clientY - rotHd.sy) <= 12) {
+    return { type: 'rotate', handle: 'rot', hd: rotHd, b, selected };
+  }
+  for (const hd of hs) {
+    if (hd.h === 'rot') continue;
+    const d = Math.hypot(clientX - hd.sx, clientY - hd.sy);
+    if (d <= 7) return { type: 'resize', handle: hd.h, hd, b, selected };
+    if (d <= 26) return { type: 'rotate', handle: hd.h, hd, b, selected };
+  }
+  return null;
 }
 
 function drawSelectionOverlay(v) {
@@ -498,24 +563,131 @@ function drawSelectionOverlay(v) {
   if (!hs.length) { bar.style.display = 'none'; return; }
   const { sx: x, sy: y } = hs[0];
   const w = hs[1].sx - x, h = hs[3].sy - y;
+  const rotHd = hs.find(h => h.h === 'rot');
+
   ctx.save();
   ctx.strokeStyle = ACCENT;
   ctx.lineWidth = 1.5;
+
+  // Dashed selection rectangle
   ctx.setLineDash([6, 4]);
   rr(ctx, x, y, w, h, 7);
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // Stem line connecting bounding box top to rotation blob
+  if (rotHd) {
+    ctx.beginPath();
+    ctx.moveTo(rotHd.topX, rotHd.topY);
+    ctx.lineTo(rotHd.sx, rotHd.sy);
+    ctx.stroke();
+  }
+
+  // Corner resize handles
   for (const hd of hs) {
+    if (hd.h === 'rot') continue;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.rect(hd.sx - 5, hd.sy - 5, 10, 10);
     ctx.fill();
     ctx.stroke();
   }
+
+  // Dedicated rotation blob handle
+  if (rotHd) {
+    const isRotHover = (hoveredHandle && hoveredHandle.handle === 'rot') || (action && action.type === 'rotate');
+    const r = isRotHover ? 9 : 7.5;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(rotHd.sx, rotHd.sy, r, 0, Math.PI * 2);
+    ctx.fillStyle = isRotHover ? '#FFF3EC' : '#FFFFFF';
+    ctx.fill();
+    ctx.lineWidth = isRotHover ? 2.5 : 2;
+    ctx.stroke();
+
+    // Inner pivot dot
+    ctx.beginPath();
+    ctx.arc(rotHd.sx, rotHd.sy, isRotHover ? 3.5 : 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = ACCENT;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Corner rotation hover hint (subtle arc when hovering in outer corner rotate zone)
+  if (hoveredHandle && hoveredHandle.type === 'rotate' && hoveredHandle.handle !== 'rot' && !action) {
+    const hd = hs.find(h => h.h === hoveredHandle.handle);
+    if (hd) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(hd.sx, hd.sy, 14, 0, Math.PI * 2);
+      ctx.strokeStyle = ACCENT;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // Active rotation guides & HUD badge
+  if (action && action.type === 'rotate') {
+    const cx = action.center.x * v.zoom + v.panX;
+    const cy = action.center.y * v.zoom + v.panY;
+
+    // Center pivot point
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = ACCENT;
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Connecting dashed ray from center to current pointer
+    if (lastPtr) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(lastPtr.x, lastPtr.y);
+      ctx.strokeStyle = 'rgba(228, 87, 46, 0.7)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Floating angle HUD pill badge
+      const deg = Math.round(action.deg || 0);
+      const sign = deg > 0 ? '+' : '';
+      const badgeText = `${sign}${deg}°${action.snappedShift ? ' (15° snap)' : ''}`;
+      ctx.font = '700 13px Nunito, sans-serif';
+      const tw = ctx.measureText(badgeText).width;
+      const bx = clamp(lastPtr.x + 18, 10, VW - tw - 30);
+      const by = clamp(lastPtr.y - 14, 28, VH - 20);
+
+      ctx.fillStyle = 'rgba(30, 36, 44, 0.92)';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+      ctx.shadowBlur = 8;
+      rr(ctx, bx - 7, by - 16, tw + 14, 24, 6);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = action.snappedShift ? '#FFD480' : '#FFFFFF';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, bx, by - 4);
+    }
+    ctx.restore();
+  }
+
   ctx.restore();
+
+  // Smart floating toolbar placement
   bar.style.display = 'flex';
   bar.style.left = clamp(x - 2, 10, VW - 140) + 'px';
-  bar.style.top  = clamp(y - 46, 64, VH - 150) + 'px';
+  const idealTop = (rotHd ? rotHd.sy : y) - 44;
+  if (idealTop >= 64) {
+    bar.style.top = clamp(idealTop, 64, VH - 150) + 'px';
+  } else {
+    bar.style.top = clamp(y + h + 16, 64, VH - 150) + 'px';
+  }
 }
 
 function render() {
@@ -604,15 +776,41 @@ function boundsOf(o) {
     }
     case 'rect': case 'ellipse': {
       const pad = o.width / 2 + 3;
+      const cx = (o.x0 + o.x1) / 2, cy = (o.y0 + o.y1) / 2;
+      const w0 = Math.abs(o.x1 - o.x0), h0 = Math.abs(o.y1 - o.y0);
+      if (o.angle) {
+        const hw = w0 / 2, hh = h0 / 2;
+        const cos = Math.abs(Math.cos(o.angle)), sin = Math.abs(Math.sin(o.angle));
+        const bbW = (hw * cos + hh * sin) * 2 + pad * 2;
+        const bbH = (hw * sin + hh * cos) * 2 + pad * 2;
+        return { x: cx - bbW / 2, y: cy - bbH / 2, w: Math.max(6, bbW), h: Math.max(6, bbH) };
+      }
       const x = Math.min(o.x0, o.x1) - pad, y = Math.min(o.y0, o.y1) - pad;
-      return { x, y, w: Math.max(6, Math.abs(o.x1 - o.x0) + pad * 2), h: Math.max(6, Math.abs(o.y1 - o.y0) + pad * 2) };
+      return { x, y, w: Math.max(6, w0 + pad * 2), h: Math.max(6, h0 + pad * 2) };
     }
     case 'text': {
       const m = textMetrics(o);
+      if (o.angle) {
+        const cx = o.x + m.w / 2, cy = o.y + m.h / 2;
+        const hw = m.w / 2, hh = m.h / 2;
+        const cos = Math.abs(Math.cos(o.angle)), sin = Math.abs(Math.sin(o.angle));
+        const bbW = (hw * cos + hh * sin) * 2;
+        const bbH = (hw * sin + hh * cos) * 2;
+        return { x: cx - bbW / 2, y: cy - bbH / 2, w: bbW, h: bbH };
+      }
       return { x: o.x, y: o.y, w: m.w, h: m.h };
     }
-    case 'image': case 'sticky':
+    case 'image': case 'sticky': {
+      if (o.angle) {
+        const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+        const hw = o.w / 2, hh = o.h / 2;
+        const cos = Math.abs(Math.cos(o.angle)), sin = Math.abs(Math.sin(o.angle));
+        const bbW = (hw * cos + hh * sin) * 2;
+        const bbH = (hw * sin + hh * cos) * 2;
+        return { x: cx - bbW / 2, y: cy - bbH / 2, w: Math.max(12, bbW), h: Math.max(12, bbH) };
+      }
       return { x: o.x, y: o.y, w: o.w, h: o.h };
+    }
   }
   return null;
 }
@@ -656,10 +854,44 @@ function objectHit(o, p, tol) {
   if (o.type === 'line' || o.type === 'arrow') {
     return distSeg(p.x, p.y, o.x0, o.y0, o.x1, o.y1) <= t + o.width / 2 + 5;
   }
-  const b = boundsOf(o);
-  if (!b) return false;
+
+  let tp = p;
+  let cx, cy, w, h;
+  if (o.x0 !== undefined) {
+    cx = (o.x0 + o.x1) / 2;
+    cy = (o.y0 + o.y1) / 2;
+    w = Math.abs(o.x1 - o.x0);
+    h = Math.abs(o.y1 - o.y0);
+  } else if (o.type === 'text') {
+    const m = textMetrics(o);
+    cx = o.x + m.w / 2;
+    cy = o.y + m.h / 2;
+    w = m.w;
+    h = m.h;
+  } else {
+    cx = o.x + o.w / 2;
+    cy = o.y + o.h / 2;
+    w = o.w;
+    h = o.h;
+  }
+
+  if (o.angle) {
+    const cos = Math.cos(-o.angle), sin = Math.sin(-o.angle);
+    const dx = p.x - cx, dy = p.y - cy;
+    tp = {
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos
+    };
+  }
+
   const s = 4 + t;
-  return p.x >= b.x - s && p.x <= b.x + b.w + s && p.y >= b.y - s && p.y <= b.y + b.h + s;
+  if (o.type === 'ellipse') {
+    const rx = w / 2 + s, ry = h / 2 + s;
+    if (rx <= 0 || ry <= 0) return false;
+    const nx = (tp.x - cx) / rx, ny = (tp.y - cy) / ry;
+    return (nx * nx + ny * ny) <= 1;
+  }
+  return tp.x >= cx - w / 2 - s && tp.x <= cx + w / 2 + s && tp.y >= cy - h / 2 - s && tp.y <= cy + h / 2 + s;
 }
 
 function hitTest(p, tol) {
@@ -780,8 +1012,23 @@ canvas.addEventListener('pointermove', e => {
 
   // Hover feedback with the select tool
   if (state.tool === 'select' && !action && !spaceHeld) {
-    const w0 = worldFromClient(e.clientX, e.clientY);
-    canvas.style.cursor = hitTest(w0, 0) ? 'move' : 'default';
+    const handleInfo = getSelectionHandleAt(e.clientX, e.clientY, page().view);
+    const prevHandle = hoveredHandle;
+    hoveredHandle = handleInfo;
+    if (prevHandle?.handle !== handleInfo?.handle || prevHandle?.type !== handleInfo?.type) {
+      needsRender = true;
+    }
+
+    if (handleInfo) {
+      if (handleInfo.type === 'resize') {
+        canvas.style.cursor = (handleInfo.handle === 'nw' || handleInfo.handle === 'se') ? 'nwse-resize' : 'nesw-resize';
+      } else {
+        canvas.style.cursor = ROTATE_CURSOR;
+      }
+    } else {
+      const w0 = worldFromClient(e.clientX, e.clientY);
+      canvas.style.cursor = hitTest(w0, 0) ? 'move' : 'default';
+    }
   }
 
   if (!action) return;
@@ -812,6 +1059,7 @@ canvas.addEventListener('pointermove', e => {
       break;
     case 'move':   doMove(w, action); break;
     case 'resize': doResize(w, action); break;
+    case 'rotate': doRotate(w, e, action); break;
   }
 });
 
@@ -845,7 +1093,8 @@ canvas.addEventListener('pointerup', e => {
     case 'erase':
     case 'move':
     case 'resize':
-      if (a.snapped) scheduleThumb();
+    case 'rotate':
+      if (a.snapped) { scheduleThumb(); scheduleSave(); }
       break;
     case 'pan':
       scheduleSave();
@@ -1055,23 +1304,36 @@ function updateMarqueeSelection(a) {
 }
 
 function handleSelectDown(e, w) {
-  const selected = getSelectedObjects();
-  if (selected.length) {
-    const b = contentBounds(selected);
-    const hs = selHandleScreen(b, page().view);
-    for (const hd of hs) {
-      if (Math.hypot(e.clientX - hd.sx, e.clientY - hd.sy) < 11) {
-        action = {
-          type: 'resize',
-          objects: selected,
-          handle: hd.h,
-          startW: w,
-          startBounds: b,
-          sos: selected.map(o => JSON.parse(JSON.stringify(o))),
-          snapped: false
-        };
-        return;
-      }
+  const handleInfo = getSelectionHandleAt(e.clientX, e.clientY, page().view);
+  if (handleInfo) {
+    if (handleInfo.type === 'resize') {
+      action = {
+        type: 'resize',
+        objects: handleInfo.selected,
+        handle: handleInfo.handle,
+        startW: w,
+        startBounds: handleInfo.b,
+        sos: handleInfo.selected.map(o => JSON.parse(JSON.stringify(o))),
+        snapped: false
+      };
+      return;
+    }
+    if (handleInfo.type === 'rotate') {
+      const cx = handleInfo.b.x + handleInfo.b.w / 2;
+      const cy = handleInfo.b.y + handleInfo.b.h / 2;
+      action = {
+        type: 'rotate',
+        objects: handleInfo.selected,
+        center: { x: cx, y: cy },
+        startAngle: Math.atan2(w.y - cy, w.x - cx),
+        deltaAngle: 0,
+        deg: 0,
+        snappedShift: false,
+        startW: w,
+        sos: handleInfo.selected.map(o => JSON.parse(JSON.stringify(o))),
+        snapped: false
+      };
+      return;
     }
   }
 
@@ -1173,6 +1435,83 @@ function doResize(w, a) {
       o.x = ax + (so.x - ax) * s; o.y = ay + (so.y - ay) * s;
     }
   });
+  needsRender = true;
+}
+
+function doRotate(w, e, a) {
+  const cx = a.center.x, cy = a.center.y;
+  const currentAngle = Math.atan2(w.y - cy, w.x - cx);
+  let dAngle = currentAngle - a.startAngle;
+
+  if (e && e.shiftKey) {
+    // Snap to 15 degrees (Math.PI / 12)
+    const step = Math.PI / 12;
+    dAngle = Math.round(dAngle / step) * step;
+    a.snappedShift = true;
+  } else {
+    a.snappedShift = false;
+  }
+
+  if (!a.snapped) {
+    if (Math.abs(dAngle) < 0.02) return;
+    pushUndo();
+    a.snapped = true;
+  }
+
+  a.deltaAngle = dAngle;
+  a.deg = Math.round((dAngle * 180 / Math.PI) % 360);
+
+  const cos = Math.cos(dAngle), sin = Math.sin(dAngle);
+
+  a.objects.forEach((o, idx) => {
+    const so = a.sos[idx];
+    if (o.type === 'stroke') {
+      o.points = so.points.map(p => {
+        const dx = p.x - cx, dy = p.y - cy;
+        return {
+          x: cx + dx * cos - dy * sin,
+          y: cy + dx * sin + dy * cos,
+          w: p.w
+        };
+      });
+    } else if (o.type === 'line' || o.type === 'arrow') {
+      const dx0 = so.x0 - cx, dy0 = so.y0 - cy;
+      const dx1 = so.x1 - cx, dy1 = so.y1 - cy;
+      o.x0 = cx + dx0 * cos - dy0 * sin;
+      o.y0 = cy + dx0 * sin + dy0 * cos;
+      o.x1 = cx + dx1 * cos - dy1 * sin;
+      o.y1 = cy + dx1 * sin + dy1 * cos;
+    } else if (o.type === 'rect' || o.type === 'ellipse') {
+      const scx = (so.x0 + so.x1) / 2, scy = (so.y0 + so.y1) / 2;
+      const sw = Math.abs(so.x1 - so.x0), sh = Math.abs(so.y1 - so.y0);
+      const dx = scx - cx, dy = scy - cy;
+      const ncx = cx + dx * cos - dy * sin;
+      const ncy = cy + dx * sin + dy * cos;
+      o.x0 = ncx - sw / 2;
+      o.x1 = ncx + sw / 2;
+      o.y0 = ncy - sh / 2;
+      o.y1 = ncy + sh / 2;
+      o.angle = (so.angle || 0) + dAngle;
+    } else if (o.type === 'text') {
+      const m = textMetrics(so);
+      const scx = so.x + m.w / 2, scy = so.y + m.h / 2;
+      const dx = scx - cx, dy = scy - cy;
+      const ncx = cx + dx * cos - dy * sin;
+      const ncy = cy + dx * sin + dy * cos;
+      o.x = ncx - m.w / 2;
+      o.y = ncy - m.h / 2;
+      o.angle = (so.angle || 0) + dAngle;
+    } else { // image, sticky
+      const scx = so.x + so.w / 2, scy = so.y + so.h / 2;
+      const dx = scx - cx, dy = scy - cy;
+      const ncx = cx + dx * cos - dy * sin;
+      const ncy = cy + dx * sin + dy * cos;
+      o.x = ncx - so.w / 2;
+      o.y = ncy - so.h / 2;
+      o.angle = (so.angle || 0) + dAngle;
+    }
+  });
+
   needsRender = true;
 }
 
@@ -1288,6 +1627,8 @@ function positionEditor() {
   const ta = $('textEditor');
   const fs = obj.fontSize * v.zoom;
   ta.style.fontSize = fs + 'px';
+  ta.style.transform = obj.angle ? `rotate(${obj.angle}rad)` : 'none';
+  ta.style.transformOrigin = (kind === 'sticky') ? 'center center' : 'top left';
   if (kind === 'sticky') {
     ta.style.left   = (obj.x * v.zoom + v.panX) + 'px';
     ta.style.top    = (obj.y * v.zoom + v.panY) + 'px';
@@ -1316,6 +1657,7 @@ function commitEditor() {
   const val = $('textEditor').value;
   editing = null;
   $('textEditor').style.display = 'none';
+  $('textEditor').style.transform = 'none';
 
   if (kind === 'text') {
     if (!val.trim()) {
@@ -2209,6 +2551,10 @@ window.addEventListener('keydown', e => {
   }
   if (editing || e.altKey) return;
 
+  if (e.key === 'Shift' && action && action.type === 'rotate') {
+    doRotate(lastPtr ? worldFromClient(lastPtr.x, lastPtr.y) : action.startW, e, action);
+  }
+
   const k = e.key.toLowerCase();
   if (TOOLKEYS[k]) {
     e.preventDefault();
@@ -2275,6 +2621,9 @@ window.addEventListener('keyup', e => {
   if (e.code === 'Space') {
     spaceHeld = false;
     canvas.style.cursor = CURSORS[state.tool] || 'default';
+  }
+  if (e.key === 'Shift' && action && action.type === 'rotate') {
+    doRotate(lastPtr ? worldFromClient(lastPtr.x, lastPtr.y) : action.startW, e, action);
   }
 });
 
